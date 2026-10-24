@@ -22,7 +22,7 @@ exports.register = async (req, res) => {
     const {
       first_name,
       last_name,
-      email,
+      email: rawEmail,
       username,
       password,
       role,
@@ -32,6 +32,11 @@ exports.register = async (req, res) => {
       passport_number,
       country_of_issue,
     } = req.body;
+
+    const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Enter a valid email address." });
+    }
 
     const emailExists = await User.findUserByEmail(email);
     if (emailExists) return res.status(400).json({ message: "Email already exists" });
@@ -47,7 +52,7 @@ exports.register = async (req, res) => {
         ? "ROLE_BENEFICIARY"
         : "ROLE_POLICYHOLDER";
 
-    const user = await User.createUser({
+    const user = await User.createUserWithVerifiedEmailOtp({
       first_name,
       last_name,
       email,
@@ -63,9 +68,16 @@ exports.register = async (req, res) => {
       // policy_id auto-generated in userModel if not provided
     });
 
+    if (!user) {
+      return res.status(400).json({ message: "Verify your email before creating your account." });
+    }
+
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
-    console.error(err);
+    if (err.code === "23505") {
+      return res.status(409).json({ message: "That email or username is already in use." });
+    }
+    console.error("Registration failed:", err.message);
     res.status(500).json({ message: "Server Error" });
   }
 };
