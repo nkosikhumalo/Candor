@@ -16,10 +16,10 @@ async function authRequest(path, options = {}) {
   return data;
 }
 
-export async function login(email, password) {
+export async function login(email, password, turnstileToken) {
   return authRequest("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, turnstileToken }),
   });
 }
 
@@ -27,6 +27,20 @@ export async function register(formData) {
   return authRequest("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(formData),
+  });
+}
+
+export async function sendRegistrationOtp(email) {
+  return authRequest("/api/auth/email-otp/send", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyRegistrationOtp(email, code) {
+  return authRequest("/api/auth/email-otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
   });
 }
 
