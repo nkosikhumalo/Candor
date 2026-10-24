@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { register as registerUser } from "../services/authService";
+import { register as registerUser, sendRegistrationOtp, verifyRegistrationOtp } from "../services/authService";
+import TurnstileWidget from "../components/TurnstileWidget";
 import "../styles/register.css";
 
 const ALL_COUNTRIES = [
@@ -34,17 +35,20 @@ const ALL_COUNTRIES = [
 
 const STEP_FORM = "form";
 const STEP_CAPTCHA = "captcha";
-const STEP_EMAIL_SENT = "email_sent";
-const STEP_EMAIL_CODE = "email_code";
 const STEP_DONE = "done";
 
 export default function Register() {
   const navigate = useNavigate();
   const [citizen, setCitizen] = useState("SA");
   const [step, setStep] = useState(STEP_FORM);
-  const [captchaChecked, setCaptchaChecked] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [emailCode, setEmailCode] = useState("");
-  const [codeError, setCodeError] = useState("");
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
@@ -67,6 +71,13 @@ export default function Register() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    if (name === "email") {
+      setEmailOtpSent(false);
+      setEmailVerified(false);
+      setEmailCode("");
+      setEmailMessage("");
+      setEmailError("");
+    }
   }
 
   function validate() {
@@ -94,6 +105,7 @@ export default function Register() {
   function handleSubmit(e) {
     e.preventDefault();
     const errs = validate();
+    if (!emailVerified) errs.email = "Verify your email address before continuing";
     if (Object.keys(errs).length) {
       setFieldErrors(errs);
       return;
@@ -101,8 +113,51 @@ export default function Register() {
     setStep(STEP_CAPTCHA);
   }
 
+  async function handleSendEmailOtp() {
+    const email = formData.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Enter a valid email address first.");
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError("");
+    setEmailMessage("");
+    try {
+      const result = await sendRegistrationOtp(email);
+      setEmailOtpSent(true);
+      setEmailVerified(false);
+      setEmailMessage(result.message || "If this address can be verified, a one-time code has been sent.");
+    } catch (err) {
+      setEmailError(err.message || "We couldn't send a code. Please try again.");
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
+  async function handleVerifyEmailOtp() {
+    if (!/^\d{6}$/.test(emailCode)) {
+      setEmailError("Enter the 6-digit code sent to your email.");
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError("");
+    setEmailMessage("");
+    try {
+      const result = await verifyRegistrationOtp(formData.email.trim(), emailCode);
+      setEmailVerified(true);
+      setEmailMessage(result.message || "Email verified. You can continue.");
+    } catch (err) {
+      setEmailError(err.message || "That code could not be verified. Check it and try again.");
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
   async function handleCaptchaVerify() {
-    if (!captchaChecked) return;
+    if (!turnstileToken) {
+      setServerError("Please complete the security check.");
+      return;
+    }
     setSubmitting(true);
     setServerError("");
     try {
@@ -117,24 +172,22 @@ export default function Register() {
           : { passport_number: formData.passport_number, country_of_issue: formData.country_of_issue }),
         date_of_birth: formData.date_of_birth,
         phone: formData.phone,
+        turnstileToken,
       });
-      setStep(STEP_EMAIL_SENT);
+      setStep(STEP_DONE);
     } catch (err) {
       setServerError(err.message || "Registration failed. Please try again.");
+      setTurnstileToken("");
+      setTurnstileReset((value) => value + 1);
+      if (err.message?.includes("Verify your email")) {
+        setEmailVerified(false);
+        setEmailOtpSent(false);
+        setEmailMessage("Your email verification expired. Please request and verify a new code.");
+      }
       setStep(STEP_FORM);
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function handleCodeVerify(e) {
-    e.preventDefault();
-    // Simulate code check — accept any 6-digit code for now
-    if (!/^\d{6}$/.test(emailCode)) {
-      setCodeError("Please enter the 6-digit code sent to your email.");
-      return;
-    }
-    setStep(STEP_DONE);
   }
 
   // ── CAPTCHA overlay ──────────────────────────────────────────────────────────
@@ -147,24 +200,11 @@ export default function Register() {
               <div className="captcha-spinner" />
             </div>
             <p className="captcha-label">Verifying your information…</p>
-            <div className="captcha-box">
-              <label className="captcha-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={captchaChecked}
-                  onChange={(e) => setCaptchaChecked(e.target.checked)}
-                />
-                <span>I&apos;m not a robot</span>
-              </label>
-              <div className="captcha-logo">
-                <div className="captcha-rc-logo">reCAPTCHA</div>
-                <div className="captcha-rc-sub">Privacy · Terms</div>
-              </div>
-            </div>
+            <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileReset} />
             <button
               className="btn btn-primary"
               onClick={handleCaptchaVerify}
-              disabled={!captchaChecked || submitting}
+              disabled={!turnstileToken || submitting}
             >
               {submitting ? "Processing…" : "Verify & Continue"}
             </button>
@@ -183,72 +223,6 @@ export default function Register() {
     );
   }
 
-  // ── Email sent notice ────────────────────────────────────────────────────────
-  if (step === STEP_EMAIL_SENT) {
-    return (
-      <div className="register-page">
-        <div className="wrap">
-          <div className="card success-screen">
-            <div className="check">✉</div>
-            <h2>Check your email</h2>
-            <p>
-              We sent a 6-digit verification code to <strong>{formData.email}</strong>.
-              Please enter it below to activate your account.
-            </p>
-            <button
-              className="btn btn-primary"
-              style={{ marginTop: 8 }}
-              onClick={() => setStep(STEP_EMAIL_CODE)}
-            >
-              Enter code
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Email code entry ─────────────────────────────────────────────────────────
-  if (step === STEP_EMAIL_CODE) {
-    return (
-      <div className="register-page">
-        <div className="wrap">
-          <div className="card" style={{ padding: "32px 26px" }}>
-            <h2 style={{ marginBottom: 8, fontSize: 22 }}>Enter verification code</h2>
-            <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 24 }}>
-              A 6-digit code was sent to <strong>{formData.email}</strong>.
-            </p>
-            <form onSubmit={handleCodeVerify}>
-              <div className="field">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  name="email_code"
-                  value={emailCode}
-                  onChange={(e) => { setEmailCode(e.target.value.replace(/\D/g, "")); setCodeError(""); }}
-                  placeholder=" "
-                  autoComplete="one-time-code"
-                />
-                <label>6-digit code</label>
-              </div>
-              {codeError && <p className="field-error">{codeError}</p>}
-              <button className="btn btn-primary" type="submit">Verify</button>
-            </form>
-            <button
-              className="cancel-link"
-              type="button"
-              onClick={() => setStep(STEP_EMAIL_SENT)}
-              style={{ marginTop: 14, background: "none", border: "none", cursor: "pointer" }}
-            >
-              Resend code
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ── Done ─────────────────────────────────────────────────────────────────────
   if (step === STEP_DONE) {
     return (
@@ -256,8 +230,8 @@ export default function Register() {
         <div className="wrap">
           <div className="card success-screen">
             <div className="check">✓</div>
-            <h2>Account verified</h2>
-            <p>Your account is ready. You can now log in with your new credentials.</p>
+            <h2>Account created</h2>
+            <p>Your email is verified and your account is ready. You can now log in.</p>
             <button className="btn btn-primary" onClick={() => navigate("/login")}>
               Continue to log in
             </button>
@@ -379,9 +353,39 @@ export default function Register() {
             </div>
 
             {/* Email */}
-            <div className="field">
-              <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder=" " />
-              <label>Email address</label>
+            <div className="email-verification-block">
+              <div className="email-input-row">
+                <div className="field email-input-field">
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder=" " autoComplete="email" />
+                  <label>Email address</label>
+                </div>
+                <button className="btn btn-secondary" type="button" onClick={handleSendEmailOtp} disabled={emailBusy || emailVerified}>
+                  {emailBusy && !emailVerified ? "Please wait…" : emailOtpSent ? "Resend OTP" : "Send OTP"}
+                </button>
+              </div>
+              {emailOtpSent && !emailVerified && (
+                <div className="email-otp-row">
+                  <div className="field email-code-field">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={emailCode}
+                      onChange={(e) => { setEmailCode(e.target.value.replace(/\D/g, "")); setEmailError(""); }}
+                      placeholder=" "
+                      autoComplete="one-time-code"
+                      aria-label="Email verification code"
+                    />
+                    <label>6-digit email code</label>
+                  </div>
+                  <button className="btn btn-secondary" type="button" onClick={handleVerifyEmailOtp} disabled={emailBusy || emailCode.length !== 6}>
+                    {emailBusy ? "Checking…" : "Verify code"}
+                  </button>
+                </div>
+              )}
+              {emailVerified && <p className="email-verified-message" role="status">✓ Email verified</p>}
+              {emailMessage && !emailVerified && <p className="email-status-message" role="status">{emailMessage}</p>}
+              {emailError && <span className="field-error" role="alert">{emailError}</span>}
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
             </div>
 
