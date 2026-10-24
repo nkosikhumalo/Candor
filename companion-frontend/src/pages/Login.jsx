@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
+import TurnstileWidget from "../components/TurnstileWidget";
 import "../styles/login.css";
 
 function Login() {
@@ -15,6 +16,8 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
 
   // forgot password state
   const [forgotId, setForgotId] = useState("");
@@ -28,7 +31,11 @@ function Login() {
     setError("");
     setLoading(true);
     try {
-      const { user } = await login(email, password);
+      if (!turnstileToken) {
+        setError("Please complete the security check.");
+        return;
+      }
+      const { user } = await login(email, password, turnstileToken);
       saveAuth(user);
       navigate(redirectTo, {
         replace: true,
@@ -38,6 +45,8 @@ function Login() {
       });
     } catch (err) {
       setError(err.message);
+      setTurnstileToken("");
+      setTurnstileReset((value) => value + 1);
     } finally {
       setLoading(false);
     }
@@ -199,9 +208,10 @@ function Login() {
               </button>
             </div>
 
+            <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileReset} />
             {error && <p className="error-msg">{error}</p>}
 
-            <button className="btn-primary" type="submit" disabled={loading}>
+            <button className="btn-primary" type="submit" disabled={loading || !turnstileToken}>
               {loading ? "Signing in…" : "Log in"}
             </button>
 
