@@ -9,12 +9,7 @@ export default function TurnstileWidget({ onToken, resetKey = 0 }) {
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
-    onToken("");
-    setError("");
-    if (!siteKey) {
-      setError("Verification is not configured. Please contact support.");
-      return undefined;
-    }
+    if (!siteKey) return undefined;
 
     let cancelled = false;
     const render = () => {
@@ -22,7 +17,10 @@ export default function TurnstileWidget({ onToken, resetKey = 0 }) {
       if (widgetIdRef.current !== null) window.turnstile.remove(widgetIdRef.current);
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
-        callback: (token) => onToken(token),
+        callback: (token) => {
+          setError("");
+          onToken(token);
+        },
         "expired-callback": () => onToken(""),
         "error-callback": () => {
           onToken("");
@@ -53,10 +51,14 @@ export default function TurnstileWidget({ onToken, resetKey = 0 }) {
     };
   }, [siteKey, resetKey, onToken]);
 
+  const visibleError = siteKey
+    ? error
+    : "Verification is not configured. Please contact support.";
+
   return (
     <div className="turnstile-field">
       <div ref={containerRef} />
-      {error && <p className="field-error" role="alert">{error}</p>}
+      {visibleError && <p className="field-error" role="alert">{visibleError}</p>}
     </div>
   );
 }
