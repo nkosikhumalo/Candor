@@ -45,7 +45,8 @@ exports.send = async (req, res) => {
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) {
-      console.error("Resend rejected registration OTP email with HTTP", response.status);
+      const providerError = await response.text().catch(() => "");
+      console.error("Resend rejected registration OTP email:", response.status, providerError.slice(0, 1000));
       return res.status(502).json({ message: "We couldn't send the verification email. Please try again shortly." });
     }
     return res.json({ message: "If this address can be verified, a code has been sent." });
