@@ -104,7 +104,9 @@ function MessageList({ messages, isLoading, bottomRef, onQuickStart, onFocusInpu
                 </div>
                 <div className="bubble-body">
                     {isBot ? (
-                        <ReactMarkdown>{msg.text || msg.message || ""}</ReactMarkdown>
+                        <div className="assistant-markdown">
+                            <ReactMarkdown>{msg.text || msg.message || ""}</ReactMarkdown>
+                        </div>
                     ) : (
                         msg.text || msg.message
                     )}

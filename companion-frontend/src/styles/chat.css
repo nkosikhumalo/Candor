@@ -464,6 +464,7 @@
 }
 
 .bubble-bot {
+    max-width: 88%;
     background: var(--surface);
     border: 1px solid var(--border);
     box-shadow: none;
@@ -940,8 +941,42 @@ body.dark .input-inner {
 .message-row.bot .bubble h2,
 .message-row.bot .bubble h3 {
     font-weight: 700;
-    margin: 10px 0 4px;
+    margin: 14px 0 7px;
     color: var(--text);
+}
+
+.assistant-markdown > :first-child {
+    margin-top: 0;
+}
+
+.assistant-markdown h2,
+.assistant-markdown h3 {
+    font-size: 13px;
+    line-height: 1.4;
+    letter-spacing: .25px;
+}
+
+.assistant-markdown h3 {
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+}
+
+.assistant-markdown ul,
+.assistant-markdown ol {
+    padding-left: 21px;
+}
+
+.assistant-markdown li {
+    padding-left: 2px;
+}
+
+.assistant-markdown li::marker {
+    color: var(--red);
+}
+
+.assistant-markdown p + ul,
+.assistant-markdown p + ol {
+    margin-top: 4px;
 }
 
 .message-row.bot .bubble blockquote {

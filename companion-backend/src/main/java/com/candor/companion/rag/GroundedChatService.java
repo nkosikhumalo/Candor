@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * GroundedChatService
@@ -65,6 +66,9 @@ public class GroundedChatService {
 
     @Value("${ai.openrouter.model:openai/gpt-4o-mini}")
     private String openRouterModel;
+
+    @Value("${ai.openrouter.max-tokens:1024}")
+    private int openRouterMaxTokens;
 
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
@@ -114,6 +118,16 @@ public class GroundedChatService {
     public String answer(String userQuestion, String userId, String policyId,
                          String role, boolean deceasedFlag, String conversationId) throws SQLException {
 
+        // Greetings and other short social openers are not policy questions.
+        // Sending them through keyword retrieval guarantees an empty context
+        // and produces the same policy-document fallback on every greeting.
+        if (isGreeting(userQuestion)) {
+            String greeting = "Hi! How can I help with your MediCare policy or claims today?";
+            memoryStore.append(conversationId, "user", userQuestion);
+            memoryStore.append(conversationId, "assistant", greeting);
+            return greeting;
+        }
+
         // Step 0: Pre-LLM role-based intent gate — blocks BENEFICIARY from
         // what-if and policy-update intents before any tokens are consumed.
         CompanionRole effectiveRole;
@@ -125,6 +139,13 @@ public class GroundedChatService {
         String blocked = intentGuard.checkAccess(userQuestion, effectiveRole, userId, policyId);
         if (blocked != null) {
             return blocked;
+        }
+
+        String scopeAnswer = deceasedFlag ? null : answerCatalogOrEligibilityScope(userQuestion);
+        if (scopeAnswer != null) {
+            memoryStore.append(conversationId, "user", userQuestion);
+            memoryStore.append(conversationId, "assistant", scopeAnswer);
+            return scopeAnswer;
         }
 
         // Step 1: Retrieve grounded RAG context
@@ -139,7 +160,11 @@ public class GroundedChatService {
                 "or their financial adviser for authoritative guidance."
         );
         if (contextOpt.isEmpty()) {
-            log.info("[GroundedChat] No chunks cleared threshold — proceeding without grounded context.");
+            log.info("[GroundedChat] No chunks cleared threshold — returning grounded fallback without calling an AI provider.");
+            String fallback = props.getFallbackResponse();
+            memoryStore.append(conversationId, "user", userQuestion);
+            memoryStore.append(conversationId, "assistant", fallback);
+            return fallback;
         }
 
         // Step 2: Build system prompt (empathy layer + deceased-flag directive + compliance)
@@ -192,6 +217,64 @@ public class GroundedChatService {
         memoryStore.append(conversationId, "assistant", answer);
 
         return answer;
+    }
+
+    private boolean isGreeting(String message) {
+        if (message == null) return false;
+        String normalized = message.strip().toLowerCase().replaceAll("[^\\p{L}\\p{N}]+", " ").strip();
+        return normalized.matches("(?:hi|hii+|hello+|hey+|howdy|good morning|good afternoon|good evening|yo|sup)");
+    }
+
+    /** Answers broad product and eligibility questions using the documented guide scope. */
+    private String answerCatalogOrEligibilityScope(String message) {
+        if (message == null) return null;
+        String normalized = message.toLowerCase().replaceAll("[^\\p{L}\\p{N}]+", " ").strip();
+        List<String> words = List.of(normalized.split("\\s+"));
+        boolean productTopic = containsAny(words, Set.of(
+                "policy", "policies", "product", "products", "plan", "plans", "cover", "coverage",
+                "benefit", "benefits", "insurance", "protection", "option", "options"));
+        boolean asksEligibility = containsAny(words, Set.of(
+                "qualify", "qualifies", "qualified", "eligible", "eligibility", "suitable", "recommend", "recommendation"));
+
+        // Detect the intent from concepts and verbs, not one fixed sentence
+        // shape: e.g. "what policies do you guys offer?" and "available cover".
+        boolean asksAvailability = containsAny(words, Set.of(
+                "offer", "offered", "offers", "offering", "available", "provide", "provides", "sell", "include", "includes",
+                "options", "types", "type", "kinds", "range", "catalogue", "catalog", "list", "have", "got", "get", "choose", "different"));
+        boolean asksWhatTheBusinessHas = asksAvailability && containsAny(words, Set.of(
+                "you", "your", "guys", "we", "our", "medicare", "company", "do", "does"));
+
+        if (productTopic && asksEligibility) {
+            return "I can help narrow down which documented benefits may fit your needs, but I can't confirm acceptance. "
+                    + "The guide has benefit-specific age, occupation, and underwriting requirements, and final eligibility depends on the insurer's assessment. "
+                    + "What are you mainly looking to protect: your family if you die, funeral costs, income if illness or disability stops you working, critical illness, education, or a home loan?";
+        }
+
+        if ((productTopic && asksAvailability) || asksWhatTheBusinessHas) {
+            return "MediCare's life policy can combine benefits in one policy. The guide documents these options:\n\n"
+                    + "### Life and family\n"
+                    + "- Death Benefit and Last Survivor Death Benefit\n"
+                    + "- Unnatural Death Benefit and Modified Death Benefit\n"
+                    + "- Funeral Benefit and Education Protector\n"
+                    + "- Death Income Benefit and Estate Provider Benefit\n\n"
+                    + "### Disability and income\n"
+                    + "- Comprehensive Disability, Own Occupation Disability, ADW Disability, and Functional Impairment\n"
+                    + "- Complete Income Protector and Temporary Income Protector\n"
+                    + "- Business Protector, Business Overheads Protector, and Group Income Top-up\n\n"
+                    + "### Illness and additional cover\n"
+                    + "- Complete Critical Illness and Enhanced Critical Illness\n"
+                    + "- Comprehensive Living Benefit and Accidental HIV Benefit\n"
+                    + "- Future Cover, Premium Waiver, Homeloan Protector, and Longevity Protector\n"
+                    + "- Professional, Student, and Homeloan packages\n\n"
+                    + "Some options are stand-alone benefits and others are add-ons. Eligibility and availability depend on the benefit rules and underwriting.\n\n"
+                    + "Which are you most interested in: family protection, funeral costs, income protection, illness cover, education, or a home loan?";
+        }
+
+        return null;
+    }
+
+    private boolean containsAny(List<String> words, Set<String> terms) {
+        return terms.stream().anyMatch(words::contains);
     }
 
     /**
@@ -283,7 +366,8 @@ public class GroundedChatService {
                 Map<String, Object> requestBody = Map.of(
                         "model", openRouterModel,
                         "messages", messages,
-                        "temperature", 0.0
+                        "temperature", 0.0,
+                        "max_tokens", openRouterMaxTokens
                 );
 
                 String jsonPayload = objectMapper.writeValueAsString(requestBody);
@@ -304,6 +388,13 @@ public class GroundedChatService {
                 }
 
                 log.warn("[GroundedChat/OpenRouter] Attempt {} — HTTP {}: {}", attempt + 1, response.statusCode(), response.body());
+
+                // Authentication, credit, and request errors will not improve
+                // by retrying the same payload. Fail fast; only retry 5xx.
+                if (response.statusCode() < 500) {
+                    log.error("[GroundedChat/OpenRouter] Non-retryable HTTP {} — returning fallback.", response.statusCode());
+                    return props.getFallbackResponse();
+                }
 
             } catch (Exception e) {
                 log.warn("[GroundedChat/OpenRouter] Attempt {} error: {}", attempt + 1, e.getMessage());

@@ -90,6 +90,36 @@ mvn spring-boot:run
 
 The Java service listens on port `8080` by default. Set `JAVA_SERVICE_URL` in the Node API if you use a different address.
 
+### Hybrid deployment: hosted frontend and Node, local Java
+
+The Vercel frontend and Render Node API can stay deployed while the Java RAG service runs on your computer. Render cannot call `localhost` on your computer, so expose a temporary HTTPS tunnel and point the Node service at it. Keep your computer awake while using the app; the tunnel URL changes when a quick tunnel restarts.
+
+1. In `companion-backend/.env`, set `JWT_SECRET` to the same value configured on the deployed Node service and set `RAG_DB_PATH=./data/rag.db` to use the local prebuilt policy index. Keep the JWT secret local and in Render's environment settings only. Add `OPENROUTER_API_KEY` here too if local Java should call OpenRouter.
+2. Start local Java:
+
+   ```bash
+   cd companion-backend
+   ./start.sh
+   ```
+
+3. In another terminal, from the repository root, start the Java API bridge:
+
+   ```bash
+   node scripts/hybrid-java-bridge.js
+   ```
+
+4. Install `cloudflared` if needed, then start a quick tunnel to the bridge:
+
+   ```bash
+   cloudflared tunnel --url http://127.0.0.1:8090
+   ```
+
+   The bridge forwards authenticated `/api/**` requests so the deployed Node BFF can use the local Java RAG, claims-document, what-if, and self-service endpoints. It blocks `/api/dev/**` token-issuing routes and does not expose Java's actuator endpoints.
+
+5. In the Render dashboard, set the Node service's `JAVA_SERVICE_URL` to the HTTPS `trycloudflare.com` URL printed by `cloudflared`, then redeploy the Node service. Leave the Vercel API rewrite pointing at the deployed Node service.
+
+This setup is for development and presentations. It depends on your computer, Java process, and tunnel staying online. A named tunnel with a stable hostname avoids changing `JAVA_SERVICE_URL` after each restart.
+
 ### 3. Start the web client
 
 Create `companion-frontend/.env`:

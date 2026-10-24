@@ -25,7 +25,11 @@ module.exports = function csrfProtection(req, res, next) {
 
   const origin = req.get("Origin");
   if (!origin || !allowedOrigins.has(origin)) {
-    return res.status(403).json({ message: "Request origin is not allowed" });
+    return res.status(403).json({
+      message: "Request origin is not allowed",
+      code: "ORIGIN_NOT_ALLOWED",
+      origin: origin || null,
+    });
   }
 
   next();
