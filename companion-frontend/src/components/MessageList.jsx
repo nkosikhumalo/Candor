@@ -26,6 +26,64 @@ function ChatBotAvatar() {
     return <span className="bubble-avatar bubble-avatar-bot" aria-hidden="true">M</span>;
 }
 
+function sentenceParagraphs(text) {
+    return text
+        .split(/\n{2,}/)
+        .flatMap(block => block.split(/(?<=[.!?])\s+(?=[A-Z0-9])/))
+        .map(block => block.trim())
+        .filter(Boolean)
+        .join("\n\n");
+}
+
+function formatAssistantMessage(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+
+    // Preserve AI output that already contains Markdown list/heading structure.
+    if (/^\s*(#{1,6}\s|[-*]\s+|\d+[.)]\s+|>\s)/m.test(text)) return text;
+
+    // Turn colon-led, semicolon-separated cover groups into bold section labels
+    // and individual bullets. This also cleans up messages saved before the
+    // backend started returning structured Markdown.
+    const colon = text.match(/^([\s\S]*?:)\s+([\s\S]+)$/);
+    if (colon) {
+        const clauses = colon[2].split(/;\s*/);
+        if (clauses.length >= 3) {
+            const finalClause = clauses.pop().trim();
+            const endOfLastItem = finalClause.search(/[.!?](?:\s|$)/);
+            const lastItem = endOfLastItem < 0 ? finalClause : finalClause.slice(0, endOfLastItem + 1);
+            const trailingText = endOfLastItem < 0 ? "" : finalClause.slice(endOfLastItem + 1).trim();
+            clauses.push(lastItem);
+
+            const formattedClauses = clauses.map(clause => {
+                let item = clause.trim().replace(/[.;]+$/, "").replace(/^and\s+/i, "");
+                let heading;
+                let covers;
+
+                const benefitGroup = item.match(/^(.+?\s+benefits?)\s*\(([^)]+)\)$/i);
+                if (benefitGroup) {
+                    heading = benefitGroup[1];
+                    covers = benefitGroup[2];
+                } else {
+                    const options = item.match(/^options?\s+(?:such as|including)\s+(.+)$/i);
+                    if (!options) return `- ${item}`;
+                    heading = "Additional options";
+                    covers = options[1];
+                }
+
+                const points = covers.split(/,\s*/).map(cover => `  - ${cover.trim()}`).join("\n");
+                return `**${heading}**\n${points}`;
+            });
+
+            return [sentenceParagraphs(colon[1]), ...formattedClauses, trailingText ? sentenceParagraphs(trailingText) : ""]
+                .filter(Boolean)
+                .join("\n\n");
+        }
+    }
+
+    return sentenceParagraphs(text);
+}
+
 function SpeakerBtn({ text }) {
     const [speaking, setSpeaking] = useState(false);
     function toggle() {
@@ -105,7 +163,7 @@ function MessageList({ messages, isLoading, bottomRef, onQuickStart, onFocusInpu
                 <div className="bubble-body">
                     {isBot ? (
                         <div className="assistant-markdown">
-                            <ReactMarkdown>{msg.text || msg.message || ""}</ReactMarkdown>
+                            <ReactMarkdown>{formatAssistantMessage(msg.text || msg.message)}</ReactMarkdown>
                         </div>
                     ) : (
                         msg.text || msg.message
