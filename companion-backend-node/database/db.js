@@ -99,6 +99,91 @@ async function createUser(user) {
   return result.rows[0];
 }
 
+async function saveRegistrationOtp(email, codeHash) {
+  await initializeSchema();
+  return pool.query(
+    `INSERT INTO registration_email_otps (email, code_hash, expires_at, attempts, last_sent_at, verified_at, consumed_at)
+     VALUES ($1, $2, NOW() + INTERVAL '10 minutes', 0, NOW(), NULL, NULL)
+     ON CONFLICT (email) DO UPDATE SET
+       code_hash = EXCLUDED.code_hash,
+       expires_at = EXCLUDED.expires_at,
+       attempts = 0,
+       last_sent_at = NOW(),
+       verified_at = NULL,
+       consumed_at = NULL
+     WHERE registration_email_otps.last_sent_at < NOW() - INTERVAL '60 seconds'
+       AND registration_email_otps.consumed_at IS NULL
+     RETURNING email`,
+    [email, codeHash]
+  );
+}
+
+async function verifyRegistrationOtp(email, codeHash) {
+  await initializeSchema();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const selected = await client.query(
+      `SELECT code_hash, expires_at, attempts, consumed_at
+       FROM registration_email_otps WHERE email = $1 FOR UPDATE`, [email]
+    );
+    const otp = selected.rows[0];
+    if (!otp || otp.consumed_at || new Date(otp.expires_at) <= new Date() || otp.attempts >= 5) {
+      if (otp && otp.attempts < 5 && !otp.consumed_at) {
+        await client.query("UPDATE registration_email_otps SET attempts = attempts + 1 WHERE email = $1", [email]);
+      }
+      await client.query("COMMIT");
+      return false;
+    }
+    if (otp.code_hash !== codeHash) {
+      await client.query("UPDATE registration_email_otps SET attempts = attempts + 1 WHERE email = $1", [email]);
+      await client.query("COMMIT");
+      return false;
+    }
+    await client.query("UPDATE registration_email_otps SET verified_at = NOW() WHERE email = $1", [email]);
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function createUserWithVerifiedEmailOtp(user) {
+  await initializeSchema();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const verified = await client.query(
+      `SELECT email FROM registration_email_otps
+       WHERE email = $1 AND verified_at > NOW() - INTERVAL '15 minutes'
+         AND consumed_at IS NULL FOR UPDATE`, [user.email]
+    );
+    if (!verified.rowCount) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    const inserted = await client.query(
+      `INSERT INTO users (first_name, last_name, email, username, password, role, phone, date_of_birth, id_number, passport_number, country_of_issue)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, first_name, last_name, email, username, role, phone, date_of_birth, created_at`,
+      [user.first_name, user.last_name, user.email, user.username, user.password,
+        user.role || "ROLE_POLICYHOLDER", user.phone, user.date_of_birth,
+        user.id_number, user.passport_number, user.country_of_issue]
+    );
+    await client.query("UPDATE registration_email_otps SET consumed_at = NOW() WHERE email = $1", [user.email]);
+    await client.query("COMMIT");
+    return inserted.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function findUserByEmail(email) {
   await initializeSchema();
   const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -198,6 +283,9 @@ async function saveMessage({ conversation_id, sender, message }) {
 module.exports = {
   pool,
   createUser,
+  saveRegistrationOtp,
+  verifyRegistrationOtp,
+  createUserWithVerifiedEmailOtp,
   findUserByEmail,
   findUserById,
   findUserByUsername,
