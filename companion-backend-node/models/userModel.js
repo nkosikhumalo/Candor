@@ -13,6 +13,7 @@ async function createUser(user) {
     id_number,
     passport_number,
     country_of_issue,
+    membership_status,
   } = user;
 
   return db.createUser({
@@ -27,6 +28,7 @@ async function createUser(user) {
     id_number,
     passport_number,
     country_of_issue,
+    membership_status,
   });
 }
 

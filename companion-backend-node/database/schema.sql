@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     country_of_issue VARCHAR(100),
     -- ROLE_POLICYHOLDER | ROLE_BENEFICIARY
     role VARCHAR(50) DEFAULT 'ROLE_POLICYHOLDER',
+    -- PRE_MEMBER accounts have registered but have no issued cover yet.
+    membership_status VARCHAR(30) NOT NULL DEFAULT 'PRE_MEMBER',
     -- Stable policy identifier — used as policyId claim in JWT so Java's
     -- ProfileStore can resolve the correct policy profile on every request.
     policy_id VARCHAR(100),

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { isPreMemberAccount } from "../services/accountStatus";
 import MembershipApplication from "../components/MembershipApplication";
 import "../styles/home.css";
 import { apiFetch } from "../services/api";
@@ -172,7 +173,7 @@ export default function Home() {
 
   useEffect(() => {
     if (authReady && !token) navigate("/login", { state: { from: "/home" }, replace: true });
-    else if (authReady && token && user && user.role !== "ROLE_BENEFICIARY" && !user.policyId && !["membership", "add-policy"].includes(view)) {
+    else if (authReady && token && isPreMemberAccount(user) && !["membership", "add-policy"].includes(view)) {
       navigate("/welcome", { replace: true });
     }
   }, [token, authReady, user, navigate, view]);

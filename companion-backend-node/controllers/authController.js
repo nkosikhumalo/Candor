@@ -5,14 +5,19 @@ const User = require("../models/userModel");
 const { sessionCookieName, sessionCookieOptions, clearSessionCookie } = require("../middleware/sessionCookie");
 
 function publicUser(user) {
+  const policyId = user.policyId || user.policy_id || null;
+  const role = user.role || "ROLE_POLICYHOLDER";
+  const membershipStatus = user.membership_status || user.membershipStatus ||
+    (role === "ROLE_BENEFICIARY" ? "BENEFICIARY" : policyId ? "MEMBER" : "PRE_MEMBER");
   return {
     id: user.id,
     first_name: user.first_name || "",
     last_name: user.last_name || "",
     email: user.email || "",
     username: user.username || "",
-    role: user.role,
-    policyId: user.policyId || user.policy_id || null,
+    role,
+    membershipStatus,
+    policyId,
     deceasedFlag: user.deceasedFlag === true || user.deceased_flag === true,
   };
 }
@@ -83,6 +88,7 @@ exports.register = async (req, res) => {
       deceased_flag: false,
       phone,
       date_of_birth,
+      membership_status: "PRE_MEMBER",
       // policy_id auto-generated in userModel if not provided
     });
 

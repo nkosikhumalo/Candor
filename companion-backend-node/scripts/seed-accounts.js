@@ -79,6 +79,17 @@ async function seedAccounts() {
     console.log("🔄 Initializing schema...");
     const schema = fs.readFileSync(path.join(__dirname, "../database/schema.sql"), "utf8");
     await pool.query(schema);
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_status VARCHAR(30);
+      UPDATE users SET membership_status = CASE
+        WHEN upper(role) IN ('ROLE_BENEFICIARY', 'BENEFICIARY') THEN 'BENEFICIARY'
+        WHEN NULLIF(btrim(policy_id), '') IS NOT NULL THEN 'MEMBER'
+        ELSE 'PRE_MEMBER'
+      END
+      WHERE membership_status IS NULL OR btrim(membership_status) = '';
+      ALTER TABLE users ALTER COLUMN membership_status SET DEFAULT 'PRE_MEMBER';
+      ALTER TABLE users ALTER COLUMN membership_status SET NOT NULL;
+    `);
     console.log("✅ Schema initialized\n");
 
     let createdCount = 0;
@@ -94,8 +105,8 @@ async function seedAccounts() {
       // Insert policyholder account
       const phResult = await pool.query(
         `INSERT INTO users 
-         (first_name, last_name, email, username, password, role, policy_id, deceased_flag)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (first_name, last_name, email, username, password, role, policy_id, deceased_flag, membership_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id, email, role, policy_id`,
         [
           firstName,
@@ -106,6 +117,7 @@ async function seedAccounts() {
           "ROLE_POLICYHOLDER",
           account.phPolicyId,
           false,
+          "MEMBER",
         ]
       );
 
@@ -120,8 +132,8 @@ async function seedAccounts() {
       // Insert beneficiary account
       const benResult = await pool.query(
         `INSERT INTO users 
-         (first_name, last_name, email, username, password, role, policy_id, deceased_flag)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (first_name, last_name, email, username, password, role, policy_id, deceased_flag, membership_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id, email, role, policy_id`,
         [
           firstName,
@@ -132,6 +144,7 @@ async function seedAccounts() {
           "ROLE_BENEFICIARY",
           account.benPolicyId,
           false,
+          "BENEFICIARY",
         ]
       );
 

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { isMemberAccount, isPreMemberAccount } from "../services/accountStatus";
 import "../styles/home.css";
 
 const BENEFIT_HIGHLIGHTS = [
@@ -28,7 +29,7 @@ export default function PreMemberWelcome() {
 
   useEffect(() => {
     if (authReady && !token) navigate("/login", { replace: true, state: { from: "/welcome" } });
-    else if (authReady && token && (user?.policyId || user?.role === "ROLE_BENEFICIARY")) {
+    else if (authReady && token && isMemberAccount(user)) {
       navigate("/home", { replace: true });
     }
   }, [authReady, token, user, navigate]);
@@ -42,7 +43,7 @@ export default function PreMemberWelcome() {
     });
   }
 
-  if (!authReady || !token || user?.policyId || user?.role === "ROLE_BENEFICIARY") return null;
+  if (!authReady || !token || !isPreMemberAccount(user)) return null;
 
   return (
     <div className="hp hp-premember">

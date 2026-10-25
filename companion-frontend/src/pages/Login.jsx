@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
+import { isMemberAccount } from "../services/accountStatus";
 import "../styles/login.css";
 
 function Login() {
@@ -24,7 +25,7 @@ function Login() {
     try {
       const { user } = await login(loginIdentifier, password);
       saveAuth(user);
-      const isExistingMember = Boolean(user?.policyId) || user?.role === "ROLE_BENEFICIARY";
+      const isExistingMember = isMemberAccount(user);
       const requestedPath = location.state?.from;
       const redirectTo = isExistingMember
         ? requestedPath || "/home"

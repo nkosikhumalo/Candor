@@ -30,6 +30,7 @@ async function initializeSchema() {
   await pool.query(schema);
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_status VARCHAR(30);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number VARCHAR(50);
@@ -37,6 +38,15 @@ async function initializeSchema() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS country_of_issue VARCHAR(100);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS policy_id VARCHAR(100);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS deceased_flag BOOLEAN DEFAULT FALSE;
+    UPDATE users
+      SET membership_status = CASE
+        WHEN upper(role) IN ('ROLE_BENEFICIARY', 'BENEFICIARY') THEN 'BENEFICIARY'
+        WHEN NULLIF(btrim(policy_id), '') IS NOT NULL THEN 'MEMBER'
+        ELSE 'PRE_MEMBER'
+      END
+      WHERE membership_status IS NULL OR btrim(membership_status) = '';
+    ALTER TABLE users ALTER COLUMN membership_status SET DEFAULT 'PRE_MEMBER';
+    ALTER TABLE users ALTER COLUMN membership_status SET NOT NULL;
     UPDATE users
       SET username = COALESCE(
         NULLIF(trim(both '.' from lower(regexp_replace(concat_ws('.', first_name, last_name), '[^a-zA-Z0-9]+', '.', 'g'))), ''),
@@ -104,6 +114,7 @@ async function createUser(user) {
     id_number,
     passport_number,
     country_of_issue,
+    membership_status,
   } = user;
 
   const existing = await findUserByEmail(email);
@@ -113,11 +124,11 @@ async function createUser(user) {
 
   const result = await pool.query(
     `
-      INSERT INTO users (first_name, last_name, email, username, password, role, phone, date_of_birth, id_number, passport_number, country_of_issue)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING id, first_name, last_name, email, username, role, phone, date_of_birth, created_at
+      INSERT INTO users (first_name, last_name, email, username, password, role, phone, date_of_birth, id_number, passport_number, country_of_issue, membership_status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, first_name, last_name, email, username, role, membership_status, phone, date_of_birth, created_at
     `,
-    [first_name, last_name, email, username, password, role || "ROLE_POLICYHOLDER", phone, date_of_birth, id_number, passport_number, country_of_issue]
+    [first_name, last_name, email, username, password, role || "ROLE_POLICYHOLDER", phone, date_of_birth, id_number, passport_number, country_of_issue, membership_status || "PRE_MEMBER"]
   );
 
   return result.rows[0];
@@ -132,7 +143,7 @@ async function findUserByEmail(email) {
 async function findUserById(id) {
   await initializeSchema();
   const result = await pool.query(
-    "SELECT id, first_name, last_name, email, username, role, policy_id, deceased_flag FROM users WHERE id = $1",
+    "SELECT id, first_name, last_name, email, username, role, membership_status, policy_id, deceased_flag FROM users WHERE id = $1",
     [id]
   );
   return result.rows[0] || null;
