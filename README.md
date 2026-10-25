@@ -164,6 +164,7 @@ companion-backend/        Spring Boot service, RAG, and business logic
 
 ## Security notes
 
+- See [`SECURITY.md`](SECURITY.md) for the request-by-request security flow, controls, known gaps, and deployment checklist.
 - Use long, random JWT secrets and keep them out of source control.
 - Use HTTPS in deployed environments and restrict `FRONTEND_ORIGINS` to the client origins you operate.
 - Keep database and AI provider credentials in environment configuration.
