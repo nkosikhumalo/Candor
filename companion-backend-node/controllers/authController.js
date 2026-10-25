@@ -90,7 +90,8 @@ exports.register = async (req, res) => {
     if (!user) return res.status(409).json({ message: "Email already exists" });
 
     try {
-      await redis().del(keyFor("verified", email));
+      const store = await redis();
+      await store.del(keyFor("verified", email));
     } catch (error) {
       console.error("Could not clear signup email verification marker:", error.message);
     }
