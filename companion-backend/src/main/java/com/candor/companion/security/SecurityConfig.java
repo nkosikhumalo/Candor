@@ -39,6 +39,7 @@ public class SecurityConfig {
                 // Dev-only: stands in for the host app's login/handoff issuance.
                 // Must be removed or locked down before any non-local deployment.
                 .requestMatchers("/api/dev/**").permitAll()
+                .requestMatchers("/api/email-otp/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
 
                 // Policy Q&A, RAG, and Claims: both roles.
