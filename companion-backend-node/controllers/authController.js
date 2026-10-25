@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
+const { redis, keyFor } = require("../services/emailOtpService");
 
 const { sessionCookieName, sessionCookieOptions, clearSessionCookie } = require("../middleware/sessionCookie");
 
@@ -87,6 +88,12 @@ exports.register = async (req, res) => {
     });
 
     if (!user) return res.status(409).json({ message: "Email already exists" });
+
+    try {
+      await redis().del(keyFor("verified", email));
+    } catch (error) {
+      console.error("Could not clear signup email verification marker:", error.message);
+    }
 
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
