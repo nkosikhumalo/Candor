@@ -29,8 +29,32 @@ async function initializeSchema() {
   const schema = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
   await pool.query(schema);
   await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number VARCHAR(50);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS passport_number VARCHAR(100);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS country_of_issue VARCHAR(100);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS policy_id VARCHAR(100);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS deceased_flag BOOLEAN DEFAULT FALSE;
+    UPDATE users
+      SET username = COALESCE(
+        NULLIF(trim(both '.' from lower(regexp_replace(concat_ws('.', first_name, last_name), '[^a-zA-Z0-9]+', '.', 'g'))), ''),
+        'member'
+      ) || '.' || id::text
+      WHERE username IS NULL OR btrim(username) = '';
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (username);
+    ALTER TABLE users ALTER COLUMN username SET NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx ON users (email);
+    CREATE SEQUENCE IF NOT EXISTS users_id_seq;
+    ALTER SEQUENCE users_id_seq OWNED BY users.id;
+    ALTER TABLE users ALTER COLUMN id SET DEFAULT nextval('users_id_seq'::regclass);
+    SELECT setval('users_id_seq', GREATEST(COALESCE((SELECT MAX(id) FROM users), 1), 1), EXISTS (SELECT 1 FROM users));
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'users'::regclass AND contype = 'p') THEN
+        ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+      END IF;
+    END $$;
     ALTER TABLE claims ADD COLUMN IF NOT EXISTS claimant_relationship VARCHAR(100);
     ALTER TABLE claims ADD COLUMN IF NOT EXISTS claim_type VARCHAR(100) NOT NULL DEFAULT 'LIFE_COVER';
     ALTER TABLE claims ADD COLUMN IF NOT EXISTS deceased_document_type VARCHAR(20) NOT NULL DEFAULT 'ID';
