@@ -1,10 +1,9 @@
 import { API_BASE, refreshSession, requireCookieConsent } from "./api";
 
 async function authRequest(path, options = {}) {
-  const { allowWithoutCookieConsent = false, ...requestOptions } = options;
-  if (!allowWithoutCookieConsent) requireCookieConsent();
+  requireCookieConsent();
   const res = await fetch(`${API_BASE}${path}`, {
-    ...requestOptions,
+    ...options,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
   });
@@ -17,10 +16,10 @@ async function authRequest(path, options = {}) {
   return data;
 }
 
-export async function login(email, password, turnstileToken) {
+export async function login(email, password) {
   return authRequest("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password, turnstileToken }),
+    body: JSON.stringify({ email, password }),
   });
 }
 
@@ -28,22 +27,6 @@ export async function register(formData) {
   return authRequest("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(formData),
-  });
-}
-
-export async function sendRegistrationOtp(email) {
-  return authRequest("/api/auth/email-otp/send", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-    allowWithoutCookieConsent: true,
-  });
-}
-
-export async function verifyRegistrationOtp(email, code) {
-  return authRequest("/api/auth/email-otp/verify", {
-    method: "POST",
-    body: JSON.stringify({ email, code }),
-    allowWithoutCookieConsent: true,
   });
 }
 
