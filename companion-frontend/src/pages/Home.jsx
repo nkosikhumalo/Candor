@@ -2,15 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import MembershipApplication from "../components/MembershipApplication";
 import "../styles/home.css";
 import { apiFetch } from "../services/api";
-
-const ROLE_LABELS = ["Policyholder", "Insured life", "Beneficiary", "Premium payer"];
-
-const DEFAULT_POLICIES = [
-  { id: 1, catalogueId: "medical", type: "Medical aid", plan: "Essential Smart", number: "MS-8821043", status: "Active", premium: "R 1 245 / mo", monthlyAmount: 1245, next: "1 Sep 2026", cover: "R 250 000", isDefault: true },
-  { id: 2, catalogueId: "life", type: "Life cover", plan: "LifeGuard Plus", number: "LC-3340187", status: "Active", premium: "R 620 / mo", monthlyAmount: 620, next: "1 Sep 2026", cover: "R 1 500 000", isDefault: true },
-];
 
 const CLAIM_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -28,127 +22,49 @@ const PASSPORT_COUNTRIES = [
   'Pakistan', 'Portugal', 'Somalia', 'South Korea', 'Spain', 'United Arab Emirates',
 ];
 
-const CLAIMS = [
-  { id: 1, type: "Medical aid", ref: "CLM-20260812", status: "In progress", date: "12 Aug 2026", amount: "R 3 200" },
-  { id: 2, type: "Medical aid", ref: "CLM-20260703", status: "Paid", date: "3 Jul 2026", amount: "R 850" },
-];
-
-const POLICY_LIST_STORAGE_KEY = "candor_added_policy_catalogue_items";
+const CLAIMS = [];
 
 const POLICY_CATALOGUE = [
-  { id: "medical", type: "Medical aid", plan: "Essential Smart", description: "Comprehensive day-to-day and hospital cover including GP visits, chronic medication, emergency room care, and specialist referrals.", premium: "From R 645 / mo", benefits: ["GP consultations", "Chronic medication", "Emergency cover", "Specialist referrals"], img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&h=300&fit=crop&auto=format&q=70" },
-  { id: "life", type: "Life cover", plan: "LifeGuard Plus", description: "Lump-sum benefit paid to your beneficiaries on death. Cover adjusts with inflation and includes a terminal illness accelerator.", premium: "From R 310 / mo", benefits: ["Death benefit", "Terminal illness payout", "Inflation-linked cover", "Beneficiary nomination"], img: "https://images.unsplash.com/photo-1529518152792-d08317b26e22?w=600&h=300&fit=crop&auto=format&q=70" },
-  { id: "car", type: "Car insurance", plan: "DriveSecure Comprehensive", description: "Comprehensive vehicle cover for accident damage, theft, third-party liability, and roadside assistance with cashback for claim-free years.", premium: "From R 480 / mo", benefits: ["Accident damage", "Theft & hijacking", "Third-party liability", "Roadside assistance"], img: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&h=300&fit=crop&auto=format&q=70" },
-  { id: "home", type: "Home insurance", plan: "HomeShield", description: "Covers your home structure and contents against fire, flooding, theft, and accidental damage. Optional all-risk cover for valuables.", premium: "From R 290 / mo", benefits: ["Structure cover", "Contents cover", "Flood & fire", "All-risk valuables"], img: "https://images.unsplash.com/photo-1449844908441-8829872d2607?w=600&h=300&fit=crop&auto=format&q=70" },
-  { id: "funeral", type: "Funeral cover", plan: "FamilyCare Funeral", description: "Pays out within 24 hours to cover funeral costs for you and your extended family. No medical examination required.", premium: "From R 95 / mo", benefits: ["24-hour payout", "Extended family cover", "No medical exam", "Repatriation benefit"], img: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=300&fit=crop&auto=format&q=70" },
-  { id: "disability", type: "Disability cover", plan: "AbilityGuard", description: "Monthly income replacement if you cannot work due to illness or injury. Covers both temporary and permanent disability.", premium: "From R 220 / mo", benefits: ["Income replacement", "Temporary disability", "Permanent disability", "Rehabilitation support"], img: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=600&h=300&fit=crop&auto=format&q=70" },
+  { id: "death", type: "Family protection", plan: "Death Benefit", description: "A life-cover benefit intended to provide financial support to nominated beneficiaries after the insured life dies, subject to policy terms and underwriting.", premium: "Quote after application review", benefits: ["Death Benefit", "Last Survivor Death Benefit", "Unnatural Death Benefit", "Modified Death Benefit"], img: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "funeral", type: "Family protection", plan: "Funeral Benefit", description: "A benefit option within the life-policy guide. Eligibility, insured lives, limits, and claim requirements depend on the selected benefit terms.", premium: "Quote after application review", benefits: ["Funeral Benefit", "Family-focused cover option", "Benefit terms apply", "Underwriting may apply"], img: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "education", type: "Family protection", plan: "Education Protector", description: "A benefit option listed in the guide to support education-related needs following a qualifying insured event, subject to its terms.", premium: "Quote after application review", benefits: ["Education Protector", "Benefit amount and term rules apply", "Standalone benefit listed in guide", "Subject to policy conditions"], img: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "income", type: "Income protection", plan: "Complete Income Protector", description: "Income-protection benefit with definitions and conditions set out in the technical guide. It is not a guarantee of acceptance or payment.", premium: "Quote after application review", benefits: ["Complete Income Protector", "Temporary Income Protector", "Business Protector", "Business Overheads Protector", "Group Income Top-up Benefit"], img: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "disability", type: "Disability protection", plan: "Comprehensive Disability Benefit", description: "Disability and impairment benefit options are assessed against the definitions, evidence requirements, and limits in the policy terms.", premium: "Quote after application review", benefits: ["Comprehensive Disability Benefit", "Own Occupation Disability Benefit", "Comprehensive ADW Disability Benefit", "ADW Disability Benefit", "Functional Impairment Benefit"], img: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "illness", type: "Illness protection", plan: "Complete Critical Illness Benefit", description: "Critical-illness and living-benefit options are defined by specified claim events and policy conditions in the guide.", premium: "Quote after application review", benefits: ["Complete Critical Illness Benefit", "Complete Enhanced Critical Illness Benefit", "Comprehensive Living Benefit", "Accidental HIV Benefit"], img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "estate", type: "Family protection", plan: "Estate Provider Benefit", description: "An estate-related life benefit option described in the guide. The insurer determines the actual terms and any payable amount after assessment.", premium: "Quote after application review", benefits: ["Estate Provider Benefit", "Death Income Benefit", "Benefit limits apply", "Subject to claims assessment"], img: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "homeloan", type: "Loan protection", plan: "Homeloan Protector", description: "A home-loan-related benefit option. Loan details and the policy’s underwriting and benefit conditions affect the cover available.", premium: "Quote after application review", benefits: ["Homeloan Protector", "Future Cover options", "Loan evidence may be requested", "Subject to policy terms"], img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&h=460&fit=crop&auto=format&q=75" },
+  { id: "additional", type: "Additional benefits", plan: "Premium Waiver & Future Cover", description: "The guide describes additional options that may be available with particular benefits or packages, subject to their rules.", premium: "Availability depends on application", benefits: ["Premium Waiver", "Future Cover", "Homeloan Protector", "Longevity Protector", "Professional, Student and Homeloan packages"], img: "https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&h=460&fit=crop&auto=format&q=75" },
 ];
 
 
-const POLICY_MONTHLY_AMOUNTS = {
-  medical: 645,
-  life: 310,
-  car: 480,
-  home: 290,
-  funeral: 95,
-  disability: 220,
-};
+const NOTIFICATIONS = [];
 
-function makeSavedPolicy(catalogueId, savedAt, listReference) {
-  const product = POLICY_CATALOGUE.find(item => item.id === catalogueId);
-  if (!product) return null;
-  return {
-    ...product,
-    catalogueId,
-    id: `saved-${catalogueId}`,
-    listReference: listReference || `LIST-${catalogueId.toUpperCase()}`,
-    addedDate: new Date(savedAt || Date.now()).toLocaleDateString(),
-    monthlyAmount: POLICY_MONTHLY_AMOUNTS[catalogueId] || 0,
-    status: "In your list",
-    isDefault: false,
-  };
-}
-
-function readSavedCatalogueEntries() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(POLICY_LIST_STORAGE_KEY) || "[]");
-    if (!Array.isArray(saved)) return [];
-    return saved.map(entry => typeof entry === "string"
-      ? { catalogueId: entry }
-      : entry && typeof entry.catalogueId === "string" ? entry : null
-    ).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-function readPolicyList() {
-  const defaultIds = new Set(DEFAULT_POLICIES.map(policy => policy.catalogueId));
-  const savedEntries = readSavedCatalogueEntries()
-    .filter(entry => !defaultIds.has(entry.catalogueId))
-    .map(entry => makeSavedPolicy(entry.catalogueId, entry.savedAt, entry.listReference))
-    .filter(Boolean);
-  return [
-    ...DEFAULT_POLICIES.map(policy => ({
-      ...POLICY_CATALOGUE.find(item => item.id === policy.catalogueId),
-      ...policy,
-    })),
-    ...savedEntries,
-  ];
-}
-
-const NOTIFICATIONS = [
-  { id: 1, text: "Your renewal quote for Essential Smart is ready.", time: "2h ago", unread: true },
-  { id: 2, text: "Premium payment of R1 245 confirmed.", time: "Yesterday", unread: false },
-  { id: 3, text: "New benefit: free dental check-up included from Sep 2026.", time: "3d ago", unread: false },
-];
-
-const DOCS = [
-  { name: "Policy schedule — Essential Smart", date: "Issued 1 Jan 2026" },
-  { name: "Policy schedule — LifeGuard Plus", date: "Issued 1 Jan 2026" },
-  { name: "Benefit statement 2025", date: "Issued 28 Feb 2026" },
-  { name: "Tax certificate 2025", date: "Issued 28 Feb 2026" },
-];
+const DOCS = [];
 
 const BENEFITS = [
   {
-    id: "wellness",
-    title: "Wellness rewards",
-    summary: "Earn points for gym visits, health checks, and healthy habits.",
-    img: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=200&fit=crop&auto=format&q=70",
-    cta: "Learn more",
-    details: [
-      "Earn 50 points per gym visit, up to 4 visits per month.",
-      "500 bonus points for completing an annual health screening.",
-      "Points can be redeemed for premium discounts, fitness gear, or grocery vouchers.",
-      "Track your progress in the MediCare member app under Rewards.",
-    ],
+    id: "family",
+    title: "Family and life benefits",
+    summary: "Explore death, funeral, education, income, and estate-related benefit options.",
+    img: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&h=400&fit=crop&auto=format&q=75",
+    cta: "Explore benefits",
+    details: ["Death Benefit", "Funeral Benefit", "Education Protector", "Death Income and Estate Provider benefits"],
   },
   {
-    id: "telemedicine",
-    title: "Telemedicine",
-    summary: "Consult a doctor 24/7 via video or phone at no extra cost.",
-    img: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=200&fit=crop&auto=format&q=70",
-    cta: "Book now",
-    details: [
-      "Speak to a GP anytime — no appointment needed.",
-      "Includes prescriptions sent directly to your nearest pharmacy.",
-      "Available to all Essential Smart and LifeGuard Plus members.",
-      "Average wait time is under 8 minutes. Use the member app or call 0800 634 227.",
-    ],
+    id: "disability-income",
+    title: "Disability and income benefits",
+    summary: "The guide lists several disability, impairment, and income-protection benefits.",
+    img: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=400&fit=crop&auto=format&q=75",
+    cta: "Explore benefits",
+    details: ["Comprehensive and Own Occupation Disability", "Functional Impairment", "Complete and Temporary Income Protector", "Business and Group Income benefits"],
   },
   {
-    id: "cashback",
-    title: "Premium cashback",
-    summary: "Get up to 30% of your premiums back for claim-free years.",
-    img: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=200&fit=crop&auto=format&q=70",
-    cta: "View details",
-    details: [
-      "After 12 consecutive claim-free months you earn 10% cashback on premiums paid.",
-      "This increases by 10% each claim-free year, capped at 30%.",
-      "Cashback is paid as a credit on your January premium.",
-      "One qualifying claim resets the counter — hospital admissions count, GP visits do not.",
-    ],
+    id: "illness",
+    title: "Illness and additional cover",
+    summary: "Critical-illness, living-benefit, and additional cover options are subject to their definitions and conditions.",
+    img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&h=400&fit=crop&auto=format&q=75",
+    cta: "Explore benefits",
+    details: ["Complete and Enhanced Critical Illness", "Comprehensive Living Benefit", "Accidental HIV Benefit", "Premium Waiver and Future Cover options"],
   },
 ];
 
@@ -175,7 +91,7 @@ function UserAvatar({ size = 36 }) {
   );
 }
 function HomeNav({ onBack, onGoHome, onViewNotif, darkMode, toggleTheme,
-  unreadCount, menuOpen, setMenuOpen, onLogout }) {
+  unreadCount, menuOpen, setMenuOpen, onLogout, username }) {
   const menuRef = useRef(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -193,6 +109,7 @@ function HomeNav({ onBack, onGoHome, onViewNotif, darkMode, toggleTheme,
       <div className="hp-nav-inner">
         <button className="hp-brand-btn" onClick={onGoHome}>Medi<span>Care</span><span className="hp-brand-dot">.</span></button>
         <div className="hp-nav-right">
+          {username && <span className="hp-username-tag">@{username}</span>}
           {onBack && <button className="hp-back-btn" onClick={onBack}>← Back</button>}
           <button className="hp-theme-btn" onClick={toggleTheme}>{darkMode ? "Light" : "Dark"}</button>
           <button className="hp-notif-btn" onClick={onViewNotif} aria-label="Notifications">
@@ -249,10 +166,6 @@ export default function Home() {
   });
   const [menuOpen, setMenuOpen] = useState(false);
   const [benefitModal, setBenefitModal] = useState(null);
-  const [policyDetails, setPolicyDetails] = useState(null);
-  const [myPolicies, setMyPolicies] = useState(readPolicyList);
-  const [policyNotice, setPolicyNotice] = useState("");
-  const [addingPolicyId, setAddingPolicyId] = useState(null);
 
   const params = new URLSearchParams(location.search);
   const view = params.get("view") || "home";
@@ -315,33 +228,8 @@ export default function Home() {
     else navigate(`/home?view=${v}`);
   }
 
-  async function handleAddPolicy(product) {
-    setAddingPolicyId(product.id);
-    setPolicyNotice("");
-    try {
-      const savedEntries = readSavedCatalogueEntries();
-      const isAlreadyListed = myPolicies.some(item => item.catalogueId === product.id);
-      if (!isAlreadyListed) {
-        const savedAt = new Date().toISOString();
-        const entry = makeSavedPolicy(product.id, savedAt);
-        localStorage.setItem(POLICY_LIST_STORAGE_KEY, JSON.stringify([
-          ...savedEntries.filter(item => item.catalogueId !== product.id),
-          { catalogueId: product.id, savedAt, listReference: entry?.listReference },
-        ]));
-        if (entry) setMyPolicies(current => [...current, entry]);
-        setPolicyNotice(`${product.plan} was added to My policies.`);
-      } else {
-        setPolicyNotice(`${product.plan} is already in My policies.`);
-      }
-    } catch {
-      setPolicyNotice("Your browser could not save this policy to the list. Check browser storage and try again.");
-    } finally {
-      setAddingPolicyId(null);
-    }
-  }
-
-  const displayName = user?.first_name || user?.username || "Member";
-  const userRole = user?.role && ROLE_LABELS.includes(user.role) ? user.role : "Policyholder";
+  const displayName = user?.username || user?.first_name || "Member";
+  const userRole = user?.role?.replace(/^ROLE_/, "") || "Policyholder";
   const unreadCount = NOTIFICATIONS.filter(n => n.unread).length;
   const recentClaims = [
     ...claims.map(claim => {
@@ -369,8 +257,18 @@ export default function Home() {
     onViewNotif: () => setView("notifications"),
     darkMode, toggleTheme, unreadCount,
     menuOpen, setMenuOpen,
+    username: user?.username,
     onLogout: () => { clearAuth(); navigate("/", { replace: true }); },
   };
+
+  if (view === "membership") {
+    return (
+      <div className="hp">
+        <HomeNav {...navProps} onBack={() => setView("home")} />
+        <MembershipApplication user={user} onBack={() => setView("home")} />
+      </div>
+    );
+  }
 
   // ── Notifications ─────────────────────────────────────────────────────────
   if (view === "notifications") {
@@ -408,10 +306,9 @@ export default function Home() {
         <main className="hp-main">
           <div className="hp-wrap">
             <div className="hp-page-title">
-              <h1>Available policies</h1>
-              <p>Save products to your list or ask Candor for guidance. These sample plans are not active insurance cover.</p>
+              <h1>MediCare life-policy benefits</h1>
+              <p>Explore options described in the MediCare technical guide. These are illustrative, not a quote or confirmation of cover.</p>
             </div>
-            {policyNotice && <p className="hp-policy-notice" role="status">{policyNotice}</p>}
             <div className="hp-catalogue-grid">
               {POLICY_CATALOGUE.map(p => (
                 <div key={p.id} className="hp-cat-card">
@@ -427,18 +324,10 @@ export default function Home() {
                     </ul>
                     <div className="hp-cat-price">{p.premium}</div>
                     <div className="hp-cat-footer">
-                      <button
-                        className="hp-btn-primary"
-                        onClick={() => handleAddPolicy(p)}
-                        disabled={addingPolicyId === p.id || myPolicies.some(item => item.catalogueId === p.id)}
-                      >
-                        {myPolicies.some(item => item.catalogueId === p.id)
-                          ? "Added to My policies"
-                          : addingPolicyId === p.id ? "Adding…" : "Add to My policies"}
-                      </button>
+                      <button className="hp-btn-primary" onClick={() => setView("membership")}>Become a member</button>
                       <button className="hp-btn-outline" onClick={() =>
-                        navigate("/chat", { state: { catalogueCard: p, backgroundLocation: location } })
-                      }>Ask Candor</button>
+                        navigate("/chat", { state: { starterQuestion: `Please explain the ${p.plan} benefit, who it may suit, and what details are needed to assess eligibility.`, backgroundLocation: location } })
+                      }>Ask about this</button>
                     </div>
                   </div>
                 </div>
@@ -469,26 +358,14 @@ export default function Home() {
                 <span className="hp-role-pill">{userRole}</span>
               </div>
               <div className="hp-profile-details">
-                <span className="hp-profile-id">MCR-2026-00291</span>
-                <span className="hp-profile-sep">·</span>
-                <span className="hp-profile-since">Member since Jan 2024</span>
+                <span className="hp-profile-id">Username: @{user?.username || "member"}</span>
               </div>
             </div>
           </div>
           <div className="hp-profile-stats">
             <div className="hp-stat">
-              <span className="hp-stat-num">{myPolicies.length}</span>
-              <span className="hp-stat-label">Policies and saved plans</span>
-            </div>
-            <div className="hp-stat-divider" />
-            <div className="hp-stat">
-              <span className="hp-stat-num">R {myPolicies.filter(policy => policy.isDefault).reduce((total, policy) => total + policy.monthlyAmount, 0).toLocaleString("en-ZA")}</span>
-              <span className="hp-stat-label">Active monthly premium</span>
-            </div>
-            <div className="hp-stat-divider" />
-            <div className="hp-stat">
-              <span className="hp-stat-num">{recentClaims.length}</span>
-              <span className="hp-stat-label">Claims this year</span>
+              <span className="hp-stat-num">Explore</span>
+              <span className="hp-stat-label">MediCare benefit options</span>
             </div>
           </div>
         </div>
@@ -498,17 +375,13 @@ export default function Home() {
         <div className="hp-wrap">
 
           <div className="hp-actions-row">
-            <button className="hp-action-btn" onClick={() => navigate("/quote")}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-              Get a quote
-            </button>
-            <button className="hp-action-btn" onClick={() => setView("add-policy")}>
+            <button className="hp-action-btn hp-primary-action" onClick={() => setView("membership")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
-              Add policy
+              Become a member
             </button>
-            <button className="hp-action-btn" onClick={() => navigate("/chat", { state: { backgroundLocation: location } })}>
+            <button className="hp-action-btn hp-primary-action" onClick={() => navigate("/chat", { state: { starterQuestion: "Help me find out which MediCare life-policy benefits may suit my needs. Ask me the questions needed to guide me, and use the policy guide and calculation feature when relevant.", backgroundLocation: location } })}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-              Ask Candor
+              Ask which policies are suitable for you
             </button>
             <button className="hp-action-btn" onClick={() => setView("notifications")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
@@ -520,48 +393,20 @@ export default function Home() {
           <section className="hp-section">
             <div className="hp-section-head">
               <div className="hp-section-bar" />
-              <h2>My policies</h2>
-              <button className="hp-link-btn" onClick={() => setView("add-policy")}>+ Add policy</button>
+              <h2>Explore MediCare benefits</h2>
+              <button className="hp-link-btn" onClick={() => setView("add-policy")}>View all benefits</button>
             </div>
-            {myPolicies.length === 0 ? (
-              <div className="hp-policy-empty">
-                <p>You have not added any products to your policy list yet.</p>
-                <button className="hp-btn-primary" onClick={() => setView("add-policy")}>Browse available policies</button>
-              </div>
-            ) : (
-              <div className="hp-policy-grid">
-                {myPolicies.map(p => (
-                  <div key={p.id} className="hp-policy-card">
-                    <div className="hp-policy-top">
-                      <div>
-                        <span className="hp-policy-type">{p.type}</span>
-                        <h3 className="hp-policy-name">{p.plan}</h3>
-                      </div>
-                      <span className={p.isDefault ? "hp-status-pill" : "hp-policy-list-pill"}>{p.status}</span>
-                    </div>
-                    <div className="hp-policy-rows">
-                      {p.number && <div className="hp-policy-row"><span>Policy number</span><span>{p.number}</span></div>}
-                      {p.listReference && <div className="hp-policy-row"><span>List reference</span><span>{p.listReference}</span></div>}
-                      {p.cover && <div className="hp-policy-row"><span>Cover amount</span><span className="hp-policy-val">{p.cover}</span></div>}
-                      <div className="hp-policy-row"><span>{p.isDefault ? "Monthly premium" : "Indicative price"}</span><span className="hp-policy-val">{p.premium}</span></div>
-                      {p.next && <div className="hp-policy-row"><span>Next payment</span><span>{p.next}</span></div>}
-                      {p.addedDate && <div className="hp-policy-row"><span>Added</span><span>{p.addedDate}</span></div>}
-                    </div>
-                    <div className="hp-policy-actions">
-                      <button className="hp-btn-outline" onClick={() =>
-                        navigate("/chat", { state: { ...(p.isDefault ? { policyCard: p } : { catalogueCard: p }), backgroundLocation: location } })
-                      }>Ask Candor</button>
-                      <button className="hp-btn-ghost" onClick={() => setPolicyDetails(p)}>View details</button>
-                    </div>
+            <div className="hp-catalogue-grid hp-dashboard-benefits">
+              {POLICY_CATALOGUE.slice(0, 6).map(p => (
+                <article className="hp-cat-card" key={p.id}>
+                  <div className="hp-cat-img"><img src={p.img} alt="" /><span className="hp-cat-type-badge">{p.type}</span></div>
+                  <div className="hp-cat-body"><h3>{p.plan}</h3><p className="hp-cat-desc">{p.description}</p>
+                    <button className="hp-benefit-link" onClick={() => navigate("/chat", { state: { starterQuestion: `Explain the ${p.plan} benefit and what policy terms determine eligibility.`, backgroundLocation: location } })}>Ask the AI about this</button>
                   </div>
-                ))}
-                <button type="button" className="hp-policy-card hp-policy-cta" onClick={() => setView("add-policy")}>
-                  <span className="hp-cta-plus">+</span>
-                  <span className="hp-policy-cta-title">Add a policy</span>
-                  <span>Browse available plans</span>
-                </button>
-              </div>
-            )}
+                </article>
+              ))}
+            </div>
+            <p className="hp-demo-label">These are benefit options from the technical guide. They are not active cover, personalised advice, or a quote.</p>
           </section>
 
           <section className="hp-section">
@@ -615,6 +460,7 @@ export default function Home() {
               <h2>Documents</h2>
             </div>
             <div className="hp-docs-list">
+              {DOCS.length === 0 && <p className="hp-claims-empty">No policy documents are linked to this demo account yet. Use Become a member to view the application document checklist.</p>}
               {DOCS.map(d => (
                 <div key={d.name} className="hp-doc-row">
                   <div className="hp-doc-icon">
@@ -712,28 +558,6 @@ export default function Home() {
                   <button type="submit" className="hp-btn-primary" disabled={claimSubmitting}>{claimSubmitting ? "Submitting…" : "Send claim"}</button>
                 </div>
               </form>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {policyDetails && (
-        <div className="hp-benefit-modal-backdrop" onClick={() => setPolicyDetails(null)}>
-          <section className="hp-benefit-modal hp-policy-detail-modal" role="dialog" aria-modal="true" aria-labelledby="policy-detail-title" onClick={event => event.stopPropagation()}>
-            <button className="hp-benefit-modal-close" onClick={() => setPolicyDetails(null)} aria-label="Close policy details">×</button>
-            <img src={policyDetails.img} alt="" className="hp-benefit-modal-img" />
-            <div className="hp-benefit-modal-body">
-              <span className="hp-policy-type">{policyDetails.type}</span>
-              <h3 id="policy-detail-title">{policyDetails.plan}</h3>
-              <p className="hp-benefit-modal-summary">{policyDetails.description}</p>
-              <p className="hp-policy-detail-meta">{policyDetails.number ? `Policy number: ${policyDetails.number} · ${policyDetails.status}` : `List reference: ${policyDetails.listReference} · Added ${policyDetails.addedDate}`}</p>
-              {policyDetails.cover && <p className="hp-policy-detail-price">Cover amount: {policyDetails.cover}</p>}
-              <p className="hp-policy-detail-price">{policyDetails.isDefault ? "Monthly premium" : "Indicative price"}: {policyDetails.premium}</p>
-              {policyDetails.next && <p className="hp-policy-detail-meta">Next payment: {policyDetails.next}</p>}
-              <h4>Included features</h4>
-              <ul className="hp-benefit-modal-list">{policyDetails.benefits.map(item => <li key={item}>{item}</li>)}</ul>
-              {!policyDetails.isDefault && <p className="hp-policy-disclaimer">This is a saved catalogue example, not an active insurance policy. Adding it to your list does not purchase or activate cover.</p>}
-              <button className="hp-btn-primary hp-benefit-modal-btn" onClick={() => setPolicyDetails(null)}>Close</button>
             </div>
           </section>
         </div>
