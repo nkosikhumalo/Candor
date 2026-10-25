@@ -553,6 +553,63 @@ body.dark .hp-cat-price { color: #e8eaf0; }
   .hp-action-btn { flex: 1; justify-content: center; padding: 10px 12px; }
 }
 
+/* Member benefit and application presentation */
+.hp-username-tag { color: #0F1E4A; background: #eef2ff; border: 1px solid #dbe3ff; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700; }
+body.dark .hp-username-tag { color: #e8eaf0; background: #202941; border-color: #35405e; }
+.hp-primary-action { background: #E4032B; border-color: #E4032B; color: #fff; }
+.hp-primary-action:hover { background: #bd0023; color: #fff; }
+.hp-demo-label { display: block; margin: 10px 0 18px; color: #6B7280; font-size: 12px; line-height: 1.55; }
+.hp-dashboard-benefits { margin-bottom: 0; }
+.hp-membership-title { align-items: flex-start; }
+.hp-membership-notice { margin: 0 0 22px; padding: 15px 18px; border: 1px solid #f3d58a; border-radius: 10px; background: #fff9e8; color: #624b16; font-size: 13px; line-height: 1.6; }
+body.dark .hp-membership-notice { background: #302b1b; border-color: #66572b; color: #f0dfac; }
+.hp-membership-form { display: grid; gap: 18px; }
+.hp-membership-card, .hp-membership-success { background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 22px; }
+body.dark .hp-membership-card, body.dark .hp-membership-success { background: #161b27; border-color: #2a3147; }
+.hp-membership-section-heading { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 18px; }
+.hp-membership-section-heading > span { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; background: #fff0f2; color: #E4032B; font-weight: 800; }
+.hp-membership-section-heading h2 { margin: 0 0 5px; font-size: 18px; }
+.hp-membership-section-heading p { margin: 0; color: #6B7280; font-size: 13px; }
+.hp-membership-account-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.hp-membership-account-grid > div { display: grid; gap: 5px; min-width: 0; }
+.hp-membership-account-grid small { color: #6B7280; }
+.hp-membership-account-grid strong { overflow-wrap: anywhere; }
+.hp-benefit-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.hp-benefit-choice { display: flex; align-items: center; gap: 10px; padding: 13px; border: 1px solid #E5E7EB; border-radius: 8px; cursor: pointer; }
+.hp-benefit-choice.selected { border-color: #E4032B; background: #fff5f6; }
+body.dark .hp-benefit-choice { border-color: #35405e; }
+body.dark .hp-benefit-choice.selected { background: #311d27; }
+.hp-benefit-choice input { accent-color: #E4032B; }
+.hp-document-upload-list { display: grid; gap: 10px; }
+.hp-document-upload { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px dashed #cbd1dc; border-radius: 9px; cursor: pointer; }
+.hp-document-upload:hover { border-color: #E4032B; }
+.hp-document-upload-icon { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 8px; background: #fff0f2; color: #E4032B; font-size: 22px; }
+.hp-document-upload-copy { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.hp-document-upload-copy strong { font-size: 13px; }
+.hp-document-upload-copy em { color: #E4032B; font-size: 10px; font-style: normal; text-transform: uppercase; }
+.hp-document-upload-copy small { color: #6B7280; line-height: 1.45; }
+.hp-document-upload-copy .hp-file-name { color: #0F1E4A; font-weight: 600; overflow-wrap: anywhere; }
+body.dark .hp-document-upload-copy .hp-file-name { color: #d9e2ff; }
+.hp-document-upload input[type="file"] { max-width: 230px; font-size: 11px; }
+.hp-conditional-documents { margin-top: 16px; color: #374151; }
+.hp-conditional-documents summary { cursor: pointer; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.hp-membership-error { color: #b42318; font-size: 13px; }
+.hp-membership-submit-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 4px 0 35px; }
+.hp-membership-submit-row p { max-width: 650px; color: #6B7280; font-size: 12px; line-height: 1.55; }
+.hp-review-button { min-width: 210px; }
+.hp-membership-success { max-width: 680px; margin: 24px auto; text-align: center; padding: 38px; }
+.hp-membership-success h2 { margin: 10px 0; }
+.hp-membership-success p { color: #6B7280; line-height: 1.6; }
+.hp-membership-success-icon { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 12px; border-radius: 50%; background: #e7f7ee; color: #17804a; font-size: 28px; }
+@media (max-width: 640px) {
+  .hp-membership-account-grid { grid-template-columns: 1fr; }
+  .hp-membership-submit-row { align-items: stretch; flex-direction: column; }
+  .hp-review-button { width: 100%; }
+  .hp-document-upload { align-items: flex-start; flex-wrap: wrap; }
+  .hp-document-upload input[type="file"] { width: 100%; max-width: none; margin-left: 47px; }
+  .hp-username-tag { font-size: 11px; padding: 6px 9px; }
+}
+
 /* Brand dot — navy, opposite to the red Medi prefix */
 .hp-brand-btn span:first-child { color: #E4032B; }
 .hp-brand-dot { color: #0F1E4A; font-weight: 900; }
