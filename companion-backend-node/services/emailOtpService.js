@@ -1,17 +1,38 @@
 const crypto = require("crypto");
-const { Redis } = require("@upstash/redis");
+const { createClient } = require("redis");
 
 let redisClient;
+let connectPromise;
 
 function normalizeEmail(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
-function redis() {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) throw new Error("Email verification storage is not configured");
-  if (!redisClient) redisClient = new Redis({ url, token });
+async function redis() {
+  const url = process.env.REDIS_URL;
+  if (!url) throw new Error("Email verification storage is not configured");
+
+  if (!redisClient) {
+    redisClient = createClient({ url });
+    redisClient.on("error", error => {
+      console.error("Redis client error:", error.message);
+    });
+  }
+
+  if (connectPromise) {
+    await connectPromise;
+  } else if (!redisClient.isOpen) {
+    connectPromise = redisClient.connect();
+    try {
+      await connectPromise;
+    } catch (error) {
+      redisClient = undefined;
+      throw error;
+    } finally {
+      connectPromise = undefined;
+    }
+  }
+
   return redisClient;
 }
 
