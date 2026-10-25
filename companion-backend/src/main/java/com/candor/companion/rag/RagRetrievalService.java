@@ -77,10 +77,20 @@ public class RagRetrievalService {
             return Optional.empty();
         }
         StringBuilder sb = new StringBuilder();
+        int maxChars = Math.max(500, props.getMaxContextChars());
         for (RetrievedChunk c : chunks) {
             String label = "[Section: " + c.section()
                     + (c.subsection() != null ? " — " + c.subsection() : "") + "]";
-            sb.append(label).append("\n").append(c.content()).append("\n\n");
+            String piece = label + "\n" + c.content() + "\n\n";
+            int remaining = maxChars - sb.length();
+            if (remaining <= 0) break;
+            if (piece.length() > remaining) {
+                if (remaining > label.length() + 4) {
+                    sb.append(piece, 0, remaining - 1).append("…");
+                }
+                break;
+            }
+            sb.append(piece);
         }
         return Optional.of(sb.toString().trim());
     }
