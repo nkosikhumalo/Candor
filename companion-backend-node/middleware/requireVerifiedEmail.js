@@ -5,7 +5,8 @@ module.exports = async function requireVerifiedEmail(req, res, next) {
   if (!email) return res.status(400).json({ message: "Enter and verify your email address before creating an account." });
 
   try {
-    const verified = await redis().get(keyFor("verified", email));
+    const store = await redis();
+    const verified = await store.get(keyFor("verified", email));
     if (verified !== "1") {
       return res.status(400).json({ message: "Verify your email address before creating your account." });
     }
