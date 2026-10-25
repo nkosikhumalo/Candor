@@ -8,6 +8,16 @@ const STEP_FORM = "form";
 const STEP_CAPTCHA = "captcha";
 const STEP_DONE = "done";
 
+function usernamePreview(firstName, lastName) {
+  const part = value => value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return [part(firstName), part(lastName)].filter(Boolean).join(".");
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const [step, setStep] = useState(STEP_FORM);
@@ -16,6 +26,7 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const [createdUsername, setCreatedUsername] = useState("");
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -23,7 +34,6 @@ export default function Register() {
     date_of_birth: "",
     phone: "",
     email: "",
-    username: "",
     password: "",
     confirm_password: "",
   });
@@ -42,7 +52,6 @@ export default function Register() {
     if (!formData.phone.trim()) errs.phone = "Required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       errs.email = "Valid email required";
-    if (!formData.username.trim()) errs.username = "Required";
     if (formData.password.length < 8) errs.password = "At least 8 characters";
     if (formData.password !== formData.confirm_password)
       errs.confirm_password = "Passwords do not match";
@@ -67,16 +76,16 @@ export default function Register() {
     setSubmitting(true);
     setServerError("");
     try {
-      await registerUser({
+      const result = await registerUser({
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
-        username: formData.username,
         password: formData.password,
         date_of_birth: formData.date_of_birth,
         phone: formData.phone,
         turnstileToken,
       });
+      setCreatedUsername(result.user?.username || "");
       setStep(STEP_DONE);
     } catch (err) {
       setServerError(err.message || "Registration failed. Please try again.");
@@ -129,7 +138,7 @@ export default function Register() {
           <div className="card success-screen">
             <div className="check">✓</div>
             <h2>Account created</h2>
-            <p>Your account is ready. You can now log in with your new credentials.</p>
+            <p>Your account is ready. Your username is <strong>{createdUsername}</strong>. Log in with your email and password.</p>
             <button className="btn btn-primary" onClick={() => navigate("/login")}>
               Continue to log in
             </button>
@@ -171,6 +180,17 @@ export default function Register() {
               {fieldErrors.last_name && <span className="field-error">{fieldErrors.last_name}</span>}
             </div>
 
+            <div className="field">
+              <input
+                value={usernamePreview(formData.first_name, formData.last_name)}
+                placeholder=" "
+                readOnly
+                aria-label="Generated username"
+              />
+              <label>Generated username</label>
+              <span className="field-hint">Created from your name. We’ll add a number if it’s already in use.</span>
+            </div>
+
             {/* Date of birth */}
             <div className="field">
               <input
@@ -203,13 +223,6 @@ export default function Register() {
               <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder=" " autoComplete="email" />
               <label>Email address</label>
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
-            </div>
-
-            {/* Username */}
-            <div className="field">
-              <input name="username" value={formData.username} onChange={handleChange} placeholder=" " />
-              <label>Username</label>
-              {fieldErrors.username && <span className="field-error">{fieldErrors.username}</span>}
             </div>
 
             {/* Password */}
