@@ -46,6 +46,8 @@ public class GroundedChatService {
 
     private static final Logger log = LoggerFactory.getLogger(GroundedChatService.class);
     private static final int MAX_RETRIES = 3;
+    private static final int MAX_HISTORY_MESSAGES = 6;
+    private static final int MAX_HISTORY_MESSAGE_CHARS = 900;
 
     @Value("${ai.gateway.base-url}")
     private String baseUrl;
@@ -148,10 +150,16 @@ public class GroundedChatService {
             return scopeAnswer;
         }
 
+        // Load history before retrieval so short follow-ups such as "would I qualify for it?"
+        // are searched with their earlier subject (for example, family protection).
+        List<Map<String, String>> storedHistory = memoryStore.getHistory(conversationId);
+        String retrievalQuestion = buildRetrievalQuery(userQuestion, storedHistory);
+        List<Map<String, String>> history = compactHistory(storedHistory);
+
         // Step 1: Retrieve grounded RAG context
         // When deceasedFlag is set, restrict to DEATH_CLAIMS chunks only —
         // the AI physically cannot see address-update or premium rules in this path.
-        Optional<String> contextOpt = retrievalService.buildGroundedContext(userQuestion, deceasedFlag);
+        Optional<String> contextOpt = retrievalService.buildGroundedContext(retrievalQuestion, deceasedFlag);
         String contextBlock = contextOpt.orElse(
                 "No relevant sections were found in the policy document for this query. " +
                 "Do NOT answer from general knowledge or make assumptions. " +
@@ -173,10 +181,8 @@ public class GroundedChatService {
         }
         String systemPrompt = promptBuilder.build(contextBlock, deceasedFlag);
 
-        // Step 3: Fetch conversation history from memory store — this is what keeps the
-        // AI contextually aware across turns. History + new message are sent together so
-        // the model never asks the user to repeat themselves.
-        List<Map<String, String>> history = memoryStore.getHistory(conversationId);
+        // Step 3: Pass the conversation history to the model as well as using it
+        // for follow-up retrieval, so it can refer to prior details naturally.
         log.info("[GroundedChat] conversationId={} historyTurns={}", conversationId, history.size());
 
         // Step 4: Select provider and call with full context bundle
@@ -225,6 +231,49 @@ public class GroundedChatService {
         return normalized.matches("(?:hi|hii+|hello+|hey+|howdy|good morning|good afternoon|good evening|yo|sup)");
     }
 
+    private String buildRetrievalQuery(String question, List<Map<String, String>> history) {
+        String normalized = question == null ? "" : question.toLowerCase();
+        List<String> words = List.of(normalized.replaceAll("[^\\p{L}\\p{N}]+", " ").strip().split("\\s+"));
+        boolean refersToEarlierTurn = normalized.matches("(?s).*\\b(it|this|that|they|them|those|there|such|same)\\b.*");
+        boolean eligibilityFollowup = containsAny(words, Set.of(
+                "qualify", "qualified", "qualifies", "eligible", "eligibility", "underwriting", "suitable"));
+        boolean hasExplicitPolicyTopic = containsAny(words, Set.of(
+                "policy", "policies", "family", "protection", "benefit", "benefits", "funeral",
+                "disability", "illness", "death", "claim", "premium", "homeloan", "mortgage"));
+        boolean implicitFollowup = eligibilityFollowup && !hasExplicitPolicyTopic;
+        if ((!refersToEarlierTurn && !implicitFollowup) || history == null || history.isEmpty()) return question;
+
+        StringBuilder query = new StringBuilder();
+        int userTurns = 0;
+        for (int i = history.size() - 1; i >= 0 && userTurns < 3; i--) {
+            Map<String, String> turn = history.get(i);
+            if (!"user".equals(turn.get("role"))) continue;
+            String content = turn.get("content");
+            if (content == null || content.isBlank()) continue;
+            if (query.length() > 0) query.insert(0, " ");
+            query.insert(0, content.length() > 180 ? content.substring(0, 180) : content);
+            userTurns++;
+        }
+        if (query.length() == 0) return question;
+        query.append(" ").append(question);
+        return query.toString();
+    }
+
+    private List<Map<String, String>> compactHistory(List<Map<String, String>> history) {
+        if (history == null || history.isEmpty()) return List.of();
+        int start = Math.max(0, history.size() - MAX_HISTORY_MESSAGES);
+        List<Map<String, String>> compacted = new ArrayList<>();
+        for (Map<String, String> turn : history.subList(start, history.size())) {
+            String content = turn.get("content");
+            if (content == null) continue;
+            if (content.length() > MAX_HISTORY_MESSAGE_CHARS) {
+                content = content.substring(0, MAX_HISTORY_MESSAGE_CHARS) + "…";
+            }
+            compacted.add(Map.of("role", turn.get("role"), "content", content));
+        }
+        return compacted;
+    }
+
     /** Answers broad product and eligibility questions using the documented guide scope. */
     private String answerCatalogOrEligibilityScope(String message) {
         if (message == null) return null;
@@ -233,9 +282,6 @@ public class GroundedChatService {
         boolean productTopic = containsAny(words, Set.of(
                 "policy", "policies", "product", "products", "plan", "plans", "cover", "coverage",
                 "benefit", "benefits", "insurance", "protection", "option", "options"));
-        boolean asksEligibility = containsAny(words, Set.of(
-                "qualify", "qualifies", "qualified", "eligible", "eligibility", "suitable", "recommend", "recommendation"));
-
         // Detect the intent from concepts and verbs, not one fixed sentence
         // shape: e.g. "what policies do you guys offer?" and "available cover".
         boolean asksAvailability = containsAny(words, Set.of(
@@ -243,12 +289,6 @@ public class GroundedChatService {
                 "options", "types", "type", "kinds", "range", "catalogue", "catalog", "list", "have", "got", "get", "choose", "different"));
         boolean asksWhatTheBusinessHas = asksAvailability && containsAny(words, Set.of(
                 "you", "your", "guys", "we", "our", "medicare", "company", "do", "does"));
-
-        if (productTopic && asksEligibility) {
-            return "I can help narrow down which documented benefits may fit your needs, but I can't confirm acceptance. "
-                    + "The guide has benefit-specific age, occupation, and underwriting requirements, and final eligibility depends on the insurer's assessment. "
-                    + "What are you mainly looking to protect: your family if you die, funeral costs, income if illness or disability stops you working, critical illness, education, or a home loan?";
-        }
 
         if ((productTopic && asksAvailability) || asksWhatTheBusinessHas) {
             return "MediCare's life policy can combine benefits in one policy. The guide documents these options:\n\n"
