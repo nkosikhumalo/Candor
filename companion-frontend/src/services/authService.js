@@ -23,6 +23,20 @@ export async function login(email, password) {
   });
 }
 
+export async function sendRegistrationOtp(email) {
+  return authRequest("/api/auth/email-otp/send", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyRegistrationOtp(email, code) {
+  return authRequest("/api/auth/email-otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
+}
+
 export async function register(formData) {
   return authRequest("/api/auth/register", {
     method: "POST",
