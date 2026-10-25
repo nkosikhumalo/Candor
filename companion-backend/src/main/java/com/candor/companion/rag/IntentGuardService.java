@@ -46,6 +46,7 @@ public class IntentGuardService {
             "increase cover", "increase my cover", "increase sum assured",
             "change premium", "adjust premium", "adjust cover",
             "new premium", "premium simulation", "cover simulation",
+            "calculate", "calculation", "calculations", "maths", "math", "estimate",
             "simulate", "sum assured"
     );
 
