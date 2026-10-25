@@ -32,6 +32,7 @@ function Chat({ popup = false, onClose }) {
     const bottomRef = useRef(null);
     const inputRef = useRef(null);
     const policyFlowStarted = useRef(false);
+    const starterQuestionSent = useRef(false);
 
     const { sendText, startQuickFlow, startPolicyContextFlow, onChipSelect, onActionSelect } = useChat({
         activeConversation,
@@ -41,6 +42,19 @@ function Chat({ popup = false, onClose }) {
         isLoading,
         setIsLoading,
     });
+
+    useEffect(() => {
+        const question = location.state?.starterQuestion;
+        if (!authReady || !token || !question || starterQuestionSent.current) return;
+        starterQuestionSent.current = true;
+        void sendText(question);
+        navigate("/chat", {
+            replace: true,
+            state: location.state?.backgroundLocation
+                ? { backgroundLocation: location.state.backgroundLocation }
+                : null,
+        });
+    }, [authReady, token, location.state, navigate, sendText]);
 
     const loadConversations = useCallback(async () => {
         if (!userId) return;
