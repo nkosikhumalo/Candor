@@ -30,10 +30,6 @@ async function createUser(user) {
   });
 }
 
-async function createUserWithVerifiedEmailOtp(user) {
-  return db.createUserWithVerifiedEmailOtp(user);
-}
-
 async function findUserByEmail(email) {
   return db.findUserByEmail(email);
 }
@@ -48,7 +44,6 @@ async function findUserByUsername(username) {
 
 module.exports = {
   createUser,
-  createUserWithVerifiedEmailOtp,
   findUserByEmail,
   findUserById,
   findUserByUsername,
