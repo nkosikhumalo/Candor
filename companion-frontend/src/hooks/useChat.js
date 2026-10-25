@@ -80,6 +80,21 @@ function parseNumber(text) {
     return isNaN(n) ? null : n;
 }
 
+function requestsWhatIfCalculation(text) {
+    const normalized = text.toLowerCase().replace(/[’']/g, "");
+    const asksForMath = /\b(what if|what-if|calculate|calculation|calculations|math|maths|simulate|simulation|estimate|work out|run the numbers|crunch the numbers)\b/.test(normalized);
+    const asksForPremiumScenario = /\b(premium|what if|what-if|simulate|simulation|increase cover|decrease cover|change cover|sum assured)\b/.test(normalized);
+    const asksForEligibility = /\b(qualify|qualifies|qualified|eligible|eligibility|underwriting)\b/.test(normalized);
+
+    // Explicit calculation requests should enter the inline maths flow even when
+    // the user is asking whether they qualify. The calculator estimates premiums;
+    // its opening message makes clear that it cannot decide underwriting eligibility.
+    if (asksForEligibility && !asksForMath && !asksForPremiumScenario) return false;
+    return asksForMath
+        || /\b(increase|decrease|reduce|raise|change)\b.{0,45}\b(cover|premium|sum assured)\b/.test(normalized)
+        || /\b(cover|premium|sum assured)\b.{0,45}\b(increase|decrease|reduce|raise|change)\b/.test(normalized);
+}
+
 let _msgId = 0;
 function nextId() { return ++_msgId; }
 
@@ -106,6 +121,20 @@ export function useChat({
     }
     function userMsg(text) {
         return { id: nextId(), sender: "user", text };
+    }
+
+    async function beginWhatIfFlow(convId, { eligibilityQuestion = false } = {}) {
+        setIsLoading(true);
+        await thinkDelay();
+        setWiData({});
+        setWiStep(WI_STEPS.AWAIT_CURRENT_PREMIUM);
+        const intro = eligibilityQuestion
+            ? "I can work through a premium estimate with you right here. It can help you explore cover and cost, but it cannot tell you whether you qualify; the insurer decides that through underwriting.\n\nFirst, what is your **current monthly premium** in Rand? You can find it on your policy schedule or debit order."
+            : "I can work through a premium estimate with you right here and compare cover amounts. It is an illustration, not a final quote or an eligibility decision.\n\nFirst, what is your **current monthly premium** in Rand? You can find it on your policy schedule or debit order.";
+        const msg = botMsg(intro);
+        setMessages(prev => [...prev, msg]);
+        if (convId) saveMessage(convId, "bot", msg.text).catch(() => {});
+        setIsLoading(false);
     }
 
     async function ensureConversation(firstMessage) {
@@ -211,7 +240,7 @@ export function useChat({
                 `**Waiting period:** ${result.waitingPeriodMonths === 0 ? "None" : result.waitingPeriodMonths + " months"}\n` +
                 `**Factor applied:** ${result.appliedFactor}\n\n` +
                 `${result.tradeOffSummary}\n\n` +
-                `This is a simulation only — not a final quote. Your actual premium depends on underwriting. Would you like to talk to an adviser, or run another simulation?`;
+                `This is a simulation only — not a final quote and it cannot confirm eligibility. Your actual premium and acceptance depend on underwriting. Would you like to talk to an adviser, or run another simulation?`;
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
         } catch {
@@ -240,13 +269,7 @@ export function useChat({
         if (convId) saveMessage(convId, "user", option.label).catch(() => {});
 
         if (option.intent === "WHAT_IF") {
-            setIsLoading(true);
-            await thinkDelay();
-            setWiStep(WI_STEPS.AWAIT_CURRENT_PREMIUM);
-            const msg = botMsg("Sure, let's explore that together. To run your simulation I'll need a couple of numbers from you — don't worry, I'll guide you through each one.\n\nFirst up: what is your **current monthly premium** in Rand? You'll find this on your policy schedule or your last debit order. Just type the amount.");
-            setMessages(prev => [...prev, msg]);
-            if (convId) saveMessage(convId, "bot", msg.text).catch(() => {});
-            setIsLoading(false);
+            await beginWhatIfFlow(convId);
             return;
         }
 
@@ -287,6 +310,11 @@ export function useChat({
             setIsLoading(false);
             return;
         }
+        if (requestsWhatIfCalculation(text)) {
+            const asksEligibility = /\b(qualify|qualifies|qualified|eligible|eligibility|underwriting)\b/i.test(text);
+            await beginWhatIfFlow(convId, { eligibilityQuestion: asksEligibility });
+            return;
+        }
         setIsLoading(true);
         try {
             const data = await ragChat(text, convId ? String(convId) : undefined);
@@ -311,13 +339,7 @@ export function useChat({
         if (convId) saveMessage(convId, "user", card.firstMessage).catch(() => {});
 
         if (card.intent === "WHAT_IF") {
-            setIsLoading(true);
-            await thinkDelay();
-            setWiStep(WI_STEPS.AWAIT_CURRENT_PREMIUM);
-            const msg = botMsg("Sure, let's explore that together. To run your simulation I'll need a couple of numbers from you — don't worry, I'll guide you through each one.\n\nFirst up: what is your **current monthly premium** in Rand? You'll find this on your policy schedule or your last debit order. Just type the amount.");
-            setMessages(prev => [...prev, msg]);
-            if (convId) saveMessage(convId, "bot", msg.text).catch(() => {});
-            setIsLoading(false);
+            await beginWhatIfFlow(convId);
             return;
         }
 
