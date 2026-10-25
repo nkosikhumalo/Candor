@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { register as registerUser } from "../services/authService";
+import { register as registerUser, sendRegistrationOtp, verifyRegistrationOtp } from "../services/authService";
 import TurnstileWidget from "../components/TurnstileWidget";
 import "../styles/register.css";
 
@@ -27,6 +27,12 @@ export default function Register() {
   const [serverError, setServerError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [createdUsername, setCreatedUsername] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -42,6 +48,53 @@ export default function Register() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    if (name === "email") {
+      setEmailCode("");
+      setEmailOtpSent(false);
+      setEmailVerified(false);
+      setEmailMessage("");
+      setEmailError("");
+    }
+  }
+
+  async function handleSendEmailOtp() {
+    const email = formData.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Enter a valid email address first.");
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError("");
+    setEmailMessage("");
+    try {
+      const result = await sendRegistrationOtp(email);
+      setEmailOtpSent(true);
+      setEmailCode("");
+      setEmailMessage(result.message || "We sent a verification code to your email.");
+    } catch (err) {
+      setEmailError(err.message || "We couldn't send a code. Please try again.");
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
+  async function handleVerifyEmailOtp() {
+    if (!/^\d{6}$/.test(emailCode)) {
+      setEmailError("Enter the 6-digit code from your email.");
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError("");
+    setEmailMessage("");
+    try {
+      const result = await verifyRegistrationOtp(formData.email.trim().toLowerCase(), emailCode);
+      setEmailVerified(true);
+      setEmailMessage(result.message || "Email verified.");
+    } catch (err) {
+      setEmailError(err.message || "That code could not be verified. Check it and try again.");
+    } finally {
+      setEmailBusy(false);
+    }
   }
 
   function validate() {
@@ -50,8 +103,11 @@ export default function Register() {
     if (!formData.last_name.trim()) errs.last_name = "Required";
     if (!formData.date_of_birth) errs.date_of_birth = "Required";
     if (!formData.phone.trim()) errs.phone = "Required";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = "Valid email required";
+    } else if (!emailVerified) {
+      errs.email = "Verify your email before continuing.";
+    }
     if (formData.password.length < 8) errs.password = "At least 8 characters";
     if (formData.password !== formData.confirm_password)
       errs.confirm_password = "Passwords do not match";
@@ -89,6 +145,10 @@ export default function Register() {
       setStep(STEP_DONE);
     } catch (err) {
       setServerError(err.message || "Registration failed. Please try again.");
+      if (err.message?.toLowerCase().includes("verify your email")) {
+        setEmailVerified(false);
+        setEmailError(err.message);
+      }
       setTurnstileToken("");
       setTurnstileReset((value) => value + 1);
       setStep(STEP_FORM);
@@ -219,9 +279,42 @@ export default function Register() {
             </div>
 
             {/* Email */}
-            <div className="field">
-              <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder=" " autoComplete="email" />
-              <label>Email address</label>
+            <div className="email-verification-block">
+              <div className="email-input-row">
+                <div className="field email-input-field">
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder=" " autoComplete="email" />
+                  <label>Email address</label>
+                </div>
+                {!emailVerified && (
+                  <button className="email-otp-button" type="button" onClick={handleSendEmailOtp} disabled={emailBusy}>
+                    {emailBusy ? "Please wait…" : emailOtpSent ? "Resend OTP" : "Send OTP"}
+                  </button>
+                )}
+                {emailVerified && <span className="email-verified-badge" role="status">✓ Verified</span>}
+              </div>
+              {emailOtpSent && !emailVerified && (
+                <div className="email-input-row email-code-row">
+                  <div className="field email-code-field">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={emailCode}
+                      onChange={(e) => { setEmailCode(e.target.value.replace(/\D/g, "")); setEmailError(""); }}
+                      placeholder=" "
+                      aria-label="Enter OTP"
+                    />
+                    <label>Enter OTP</label>
+                  </div>
+                  <button className="email-otp-button" type="button" onClick={handleVerifyEmailOtp} disabled={emailBusy || emailCode.length !== 6}>
+                    {emailBusy ? "Checking…" : "Verify OTP"}
+                  </button>
+                </div>
+              )}
+              {emailMessage && <p className={emailVerified ? "email-verified-message" : "email-status-message"} role="status">{emailVerified ? "✓ " : ""}{emailMessage}</p>}
+              {emailError && <span className="field-error" role="alert">{emailError}</span>}
+              {!emailVerified && <span className="email-status-message">Verify your email to continue.</span>}
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
             </div>
 
@@ -238,7 +331,7 @@ export default function Register() {
               {fieldErrors.confirm_password && <span className="field-error">{fieldErrors.confirm_password}</span>}
             </div>
 
-            <button className="btn btn-primary" type="submit">Continue</button>
+            <button className="btn btn-primary" type="submit" disabled={!emailVerified}>Continue</button>
           </form>
 
           <button type="button" className="cancel-link" onClick={() => navigate(-1)}>Cancel</button>
