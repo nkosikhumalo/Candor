@@ -28,9 +28,6 @@ exports.register = async (req, res) => {
       role,
       phone,
       date_of_birth,
-      id_number,
-      passport_number,
-      country_of_issue,
     } = req.body;
 
     const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
@@ -52,7 +49,7 @@ exports.register = async (req, res) => {
         ? "ROLE_BENEFICIARY"
         : "ROLE_POLICYHOLDER";
 
-    const user = await User.createUserWithVerifiedEmailOtp({
+    const user = await User.createUser({
       first_name,
       last_name,
       email,
@@ -62,15 +59,10 @@ exports.register = async (req, res) => {
       deceased_flag: false,
       phone,
       date_of_birth,
-      id_number,
-      passport_number,
-      country_of_issue,
       // policy_id auto-generated in userModel if not provided
     });
 
-    if (!user) {
-      return res.status(400).json({ message: "Verify your email before creating your account." });
-    }
+    if (!user) return res.status(409).json({ message: "Email already exists" });
 
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
@@ -84,7 +76,8 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
