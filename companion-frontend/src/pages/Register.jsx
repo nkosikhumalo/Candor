@@ -117,8 +117,6 @@ export default function Register() {
     if (!formData.phone.trim()) errs.phone = "Required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = "Valid email required";
-    } else if (!emailVerified) {
-      errs.email = "Verify your email before continuing.";
     }
     if (formData.password.length < 8) errs.password = "At least 8 characters";
     if (formData.password !== formData.confirm_password)
@@ -210,9 +208,16 @@ export default function Register() {
           <div className="card success-screen">
             <div className="check">✓</div>
             <h2>Account created</h2>
-            <p>Your account is ready. Your username is <strong>{createdUsername}</strong>. Log in with your email and password.</p>
-            <button className="btn btn-primary" onClick={() => navigate("/login")}>
-              Continue to log in
+            <p>Your account is ready. Your username is <strong>@{createdUsername}</strong>. Use your username or email and password to sign in.</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate("/login", {
+                replace: true,
+                state: { username: createdUsername, email: formData.email },
+              })}
+            >
+              Continue
             </button>
           </div>
         </div>
@@ -337,7 +342,7 @@ export default function Register() {
               {emailError && <span className="field-error" role="alert">{emailError}</span>}
               {!emailVerified && (
                 <span className="email-status-message">
-                  {DEMO_EMAIL_VERIFICATION ? "Presentation demo: this does not send or verify an email." : "Verify your email to continue."}
+                  {DEMO_EMAIL_VERIFICATION ? "Presentation demo: this does not send or verify an email. Email verification is optional." : "Email verification is optional for now. You can continue without entering a code."}
                 </span>
               )}
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
@@ -356,7 +361,7 @@ export default function Register() {
               {fieldErrors.confirm_password && <span className="field-error">{fieldErrors.confirm_password}</span>}
             </div>
 
-            <button className="btn btn-primary" type="submit" disabled={!emailVerified}>Continue</button>
+            <button className="btn btn-primary" type="submit">Continue</button>
           </form>
 
           <button type="button" className="cancel-link" onClick={() => navigate(-1)}>Cancel</button>
