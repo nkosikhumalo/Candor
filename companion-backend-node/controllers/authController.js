@@ -17,13 +17,38 @@ function publicUser(user) {
   };
 }
 
+function normalizeUsernamePart(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+}
+
+async function generateUsername(firstName, lastName) {
+  const base = [normalizeUsernamePart(firstName), normalizeUsernamePart(lastName)]
+    .filter(Boolean)
+    .join(".")
+    .slice(0, 90)
+    .replace(/\.+$/g, "") || "user";
+
+  let suffix = 1;
+  while (suffix < 1000000) {
+    const ending = suffix === 1 ? "" : `.${suffix}`;
+    const username = `${base.slice(0, 100 - ending.length)}${ending}`;
+    if (!(await User.findUserByUsername(username))) return username;
+    suffix += 1;
+  }
+  throw new Error("Could not generate a unique username");
+}
+
 exports.register = async (req, res) => {
   try {
     const {
       first_name,
       last_name,
       email: rawEmail,
-      username,
       password,
       role,
       phone,
@@ -38,8 +63,7 @@ exports.register = async (req, res) => {
     const emailExists = await User.findUserByEmail(email);
     if (emailExists) return res.status(400).json({ message: "Email already exists" });
 
-    const usernameExists = await User.findUserByUsername(username);
-    if (usernameExists) return res.status(400).json({ message: "Username already exists" });
+    const username = await generateUsername(first_name, last_name);
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
