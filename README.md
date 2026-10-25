@@ -120,6 +120,10 @@ The Vercel frontend and Render Node API can stay deployed while the Java RAG ser
 
 This setup is for development and presentations. It depends on your computer, Java process, and tunnel staying online. A named tunnel with a stable hostname avoids changing `JAVA_SERVICE_URL` after each restart.
 
+### Presentation-only signup verification simulation
+
+For a presentation where email delivery is unavailable, signup can display a clearly labeled simulated email-verification action. This does **not** send an email or verify mailbox ownership. To enable it, set `VITE_DEMO_EMAIL_VERIFICATION=true` in the frontend environment and `DEMO_EMAIL_VERIFICATION_BYPASS=true` in the Node service environment, then rebuild/redeploy the frontend and restart/redeploy Node. Turnstile remains required. Keep both settings false or unset for real users and remove the temporary settings after the presentation. The Node flag is required because the server enforces signup verification; the frontend flag alone cannot register an account.
+
 ### 3. Start the web client
 
 Create `companion-frontend/.env`:
