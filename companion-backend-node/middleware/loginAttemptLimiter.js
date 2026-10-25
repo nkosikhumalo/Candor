@@ -3,12 +3,12 @@ const WINDOW_MS = 15 * 60 * 1000;
 const attemptsByAccount = new Map();
 
 // In-memory lockout for this single-instance school project. A successful login
-// clears the counter; after five failures, that email is paused for 15 minutes.
+// clears the counter; after five failures, that account identifier is paused for 15 minutes.
 module.exports = function loginAttemptLimiter(req, res, next) {
-  const email = typeof req.body?.email === "string"
-    ? req.body.email.trim().toLowerCase()
+  const identifier = typeof (req.body?.identifier || req.body?.email) === "string"
+    ? (req.body.identifier || req.body.email).trim().toLowerCase()
     : "";
-  const key = email || "__missing_email__";
+  const key = identifier || "__missing_identifier__";
   const now = Date.now();
   let record = attemptsByAccount.get(key);
 
