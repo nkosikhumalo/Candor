@@ -36,4 +36,8 @@ public class RagIngestionService {
     public boolean isAlreadyIngested(String filename, String version) throws SQLException {
         return repository.documentExists(filename, version);
     }
+
+    public int removeOtherVersions(String filename, String keepVersion) throws SQLException {
+        return repository.deleteOtherDocumentVersions(filename, keepVersion);
+    }
 }

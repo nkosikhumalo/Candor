@@ -1,7 +1,10 @@
 import { apiFetch } from "./api";
 
-export async function ragChat(question, conversationId) {
-    const data = await apiFetch("/api/rag/chat", {
+export async function ragChat(question, conversationId, membershipStatus) {
+    const endpoint = membershipStatus === "PRE_MEMBER"
+        ? "/api/rag/pre-member-chat"
+        : "/api/rag/chat";
+    const data = await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify({ question, conversationId }),
     });

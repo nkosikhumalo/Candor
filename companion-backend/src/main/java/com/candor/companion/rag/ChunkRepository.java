@@ -43,6 +43,43 @@ public class ChunkRepository {
         }
     }
 
+    /** Remove older ingestions of this source document to avoid duplicate search hits. */
+    public int deleteOtherDocumentVersions(String filename, String keepVersion) throws SQLException {
+        String documentFilter = "SELECT id FROM documents WHERE filename = ? AND (version IS NULL OR version <> ?)";
+        try (Connection conn = connectionProvider.getConnection()) {
+            boolean previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                int removedDocuments;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM embeddings WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id IN (" + documentFilter + "))")) {
+                    ps.setString(1, filename);
+                    ps.setString(2, keepVersion);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM chunks WHERE document_id IN (" + documentFilter + ")")) {
+                    ps.setString(1, filename);
+                    ps.setString(2, keepVersion);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM documents WHERE id IN (" + documentFilter + ")")) {
+                    ps.setString(1, filename);
+                    ps.setString(2, keepVersion);
+                    removedDocuments = ps.executeUpdate();
+                }
+                conn.commit();
+                return removedDocuments;
+            } catch (SQLException error) {
+                conn.rollback();
+                throw error;
+            } finally {
+                conn.setAutoCommit(previousAutoCommit);
+            }
+        }
+    }
+
     public long insertDocument(String filename, String version) throws SQLException {        String sql = "INSERT INTO documents (filename, version) VALUES (?, ?)";
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -170,28 +207,32 @@ public class ChunkRepository {
         if (terms.isEmpty()) return List.of();
 
         // TOC noise filter: only drop SHORT separator-heavy fragments.
-        // Real fee/premium sections embed "______" heading separators inside longer
-        // body text — those must remain searchable.
+        // Legacy underscore headings are retained in section/subsection metadata;
+        // matching those headings carries more weight than matching incidental body words.
         StringBuilder sql = new StringBuilder("""
-            SELECT c.id, c.section, c.subsection, c.content,
-                   (
+            SELECT MIN(id) AS id, section, subsection, content, MAX(hit_score) AS hit_score
+            FROM (
+                SELECT c.id, c.section, c.subsection, c.content,
+                       (
             """);
 
         for (int i = 0; i < terms.size(); i++) {
             if (i > 0) sql.append(" + ");
             sql.append("""
-                CASE WHEN LOWER(c.content) LIKE ? OR LOWER(c.section) LIKE ? THEN 1 ELSE 0 END
+                CASE WHEN LOWER(c.content) LIKE ? THEN 1 ELSE 0 END
+                + CASE WHEN LOWER(COALESCE(c.section, '')) LIKE ? THEN 2 ELSE 0 END
+                + CASE WHEN LOWER(COALESCE(c.subsection, '')) LIKE ? THEN 3 ELSE 0 END
                 """);
         }
 
         sql.append("""
-                   ) AS hit_score
-            FROM chunks c
-            WHERE length(c.content) > 100
-              AND NOT (
-                    length(c.content) < 280
-                    AND (c.content LIKE '%.......%' OR c.content LIKE '%______%')
-              )
+                       ) AS hit_score
+                FROM chunks c
+                WHERE length(c.content) > 100
+                  AND NOT (
+                        length(c.content) < 280
+                        AND (c.content LIKE '%.......%' OR c.content LIKE '%______%')
+                  )
             """);
 
         if (category != null) {
@@ -201,17 +242,18 @@ public class ChunkRepository {
         sql.append("  AND (\n");
         for (int i = 0; i < terms.size(); i++) {
             if (i > 0) sql.append(" OR ");
-            sql.append("LOWER(c.content) LIKE ? OR LOWER(c.section) LIKE ?");
+            sql.append("LOWER(c.content) LIKE ? OR LOWER(COALESCE(c.section, '')) LIKE ? OR LOWER(COALESCE(c.subsection, '')) LIKE ?");
         }
-        sql.append(") ORDER BY hit_score DESC, length(c.content) ASC LIMIT ?");
+        sql.append("  )\n            ) matches\n            GROUP BY section, subsection, content\n            ORDER BY hit_score DESC, length(content) ASC LIMIT ?");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             int param = 1;
 
-            // hit_score CASE params
+            // Topic matches in headings score above incidental word matches in prose.
             for (String term : terms) {
                 String like = "%" + term + "%";
+                ps.setString(param++, like);
                 ps.setString(param++, like);
                 ps.setString(param++, like);
             }
@@ -223,6 +265,7 @@ public class ChunkRepository {
             // WHERE LIKE params
             for (String term : terms) {
                 String like = "%" + term + "%";
+                ps.setString(param++, like);
                 ps.setString(param++, like);
                 ps.setString(param++, like);
             }
@@ -252,8 +295,11 @@ public class ChunkRepository {
                 "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
                 "of", "to", "in", "on", "for", "with", "about", "from", "by", "as",
                 "at", "or", "and", "but", "if", "then", "so", "do", "does", "did",
-                "me", "please", "tell", "give", "show",
-                "i", "you", "it", "its"
+                "me", "please", "tell", "give", "show", "explain", "describe",
+                "i", "you", "it", "its", "who", "what", "when", "where", "why", "how",
+                "details", "detail", "information", "info", "needed", "need", "suit", "suits",
+                "suitable", "may", "might", "could", "would", "should", "assess", "assessment",
+                "provide", "specific"
         );
 
         Map<String, List<String>> synonyms = Map.ofEntries(

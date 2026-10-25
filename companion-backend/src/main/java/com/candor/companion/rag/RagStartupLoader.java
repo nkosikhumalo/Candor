@@ -41,7 +41,7 @@ public class RagStartupLoader {
 
     // Update this version string whenever the source document changes
     // to force a re-ingestion on next startup.
-    private static final String DOCUMENT_VERSION = "v3.1";
+    private static final String DOCUMENT_VERSION = "v3.2";
     private static final String DOCUMENT_FILENAME = "Myriad_Technical_Guide.md";
 
     private final RagIngestionService ingestionService;
@@ -65,17 +65,21 @@ public class RagStartupLoader {
             // Skip re-ingestion if this version is already stored
             if (ingestionService.isAlreadyIngested(DOCUMENT_FILENAME, DOCUMENT_VERSION)) {
                 log.info("[RAG] Document '{}' version '{}' already ingested — skipping.", DOCUMENT_FILENAME, DOCUMENT_VERSION);
-                return;
+            } else {
+                try (InputStream inputStream = resource.getInputStream()) {
+                    byte[] bytes = inputStream.readAllBytes();
+                    // MD file — clean UTF-8, read directly.
+                    String rawText = new String(bytes, StandardCharsets.UTF_8);
+
+                    List<PolicyChunk> chunks = chunker.chunkDocument(rawText);
+                    ingestionService.ingestDocument(DOCUMENT_FILENAME, DOCUMENT_VERSION, chunks);
+                    log.info("[RAG] Ingestion complete. {} chunks stored.", chunks.size());
+                }
             }
 
-            try (InputStream inputStream = resource.getInputStream()) {
-                byte[] bytes = inputStream.readAllBytes();
-                // MD file — clean UTF-8, read directly.
-                String rawText = new String(bytes, StandardCharsets.UTF_8);
-
-                List<PolicyChunk> chunks = chunker.chunkDocument(rawText);
-                ingestionService.ingestDocument(DOCUMENT_FILENAME, DOCUMENT_VERSION, chunks);
-                log.info("[RAG] Ingestion complete. {} chunks stored.", chunks.size());
+            int removedVersions = ingestionService.removeOtherVersions(DOCUMENT_FILENAME, DOCUMENT_VERSION);
+            if (removedVersions > 0) {
+                log.info("[RAG] Removed {} stale document versions after loading {}.", removedVersions, DOCUMENT_VERSION);
             }
 
         } catch (Exception e) {

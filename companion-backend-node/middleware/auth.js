@@ -31,6 +31,9 @@ module.exports = function authenticate(req, res, next) {
             id: claims.id || claims.sub,
             role: normalizedRole,
             policyId: claims.policyId || claims.policy_id || null,
+            membershipStatus: claims.membershipStatus || (normalizedRole === "ROLE_BENEFICIARY"
+                ? "BENEFICIARY"
+                : claims.policyId || claims.policy_id ? "MEMBER" : "PRE_MEMBER"),
             deceasedFlag: claims.deceasedFlag === true || claims.deceased_flag === true,
         };
 

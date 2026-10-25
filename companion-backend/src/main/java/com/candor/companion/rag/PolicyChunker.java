@@ -78,7 +78,10 @@ public class PolicyChunker {
             boolean covered = hits.stream()
                     .anyMatch(h -> Math.abs(h.start - pos) < 5);
             if (!covered) {
-                hits.add(new HeadingHit(pos, us.end(), 2, us.group("heading").trim()));
+                // Legacy underscore headings (Description ___, Eligible lives ___)
+                // are subsections. Keep them below ATX benefit headings so the
+                // parent benefit name remains attached to every resulting chunk.
+                hits.add(new HeadingHit(pos, us.end(), 5, us.group("heading").trim()));
             }
         }
 

@@ -275,7 +275,7 @@ export function useChat({
 
         setIsLoading(true);
         try {
-            const data = await ragChat(option.message, convId ? String(convId) : undefined);
+            const data = await ragChat(option.message, convId ? String(convId) : undefined, user?.membershipStatus);
             const reply = data.reply || data.answer || "No response";
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
@@ -317,14 +317,16 @@ export function useChat({
         }
         setIsLoading(true);
         try {
-            const data = await ragChat(text, convId ? String(convId) : undefined);
+            const data = await ragChat(text, convId ? String(convId) : undefined, user?.membershipStatus);
             const reply = data.reply || data.answer || "No response";
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
         } catch (err) {
             if (err.code === "UNAUTHORIZED") { clearAuth(); window.location.href = "/login"; return; }
-            const errMsg = err.message?.includes("unavailable")
-                ? "Candor is temporarily unavailable. Please try again in a moment."
+            const errMsg = err.status === 502 || err.message?.includes("Upstream service unavailable")
+                ? "The AI service is not reachable right now. Check that the Java service is running and that JAVA_SERVICE_URL points to its current URL."
+                : err.message?.includes("unavailable")
+                    ? "The AI service is temporarily unavailable. Please try again in a moment."
                 : "Sorry, something went wrong. Please try again.";
             setMessages(prev => [...prev, botMsg(errMsg)]);
         } finally {
@@ -345,13 +347,16 @@ export function useChat({
 
         setIsLoading(true);
         try {
-            const data = await ragChat(card.firstMessage, convId ? String(convId) : undefined);
+            const data = await ragChat(card.firstMessage, convId ? String(convId) : undefined, user?.membershipStatus);
             const reply = data.reply || data.answer || "No response";
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
         } catch (err) {
             if (err.code === "UNAUTHORIZED") { clearAuth(); window.location.href = "/login"; return; }
-            setMessages(prev => [...prev, botMsg("Sorry, something went wrong. Please try again.")]);
+            const errMsg = err.status === 502 || err.message?.includes("Upstream service unavailable")
+                ? "The AI service is not reachable right now. Check that the Java service is running and that JAVA_SERVICE_URL points to its current URL."
+                : "Sorry, something went wrong. Please try again.";
+            setMessages(prev => [...prev, botMsg(errMsg)]);
         } finally {
             setIsLoading(false);
         }

@@ -22,6 +22,12 @@ function publicUser(user) {
   };
 }
 
+function membershipStatusFor(user) {
+  if (user.membership_status || user.membershipStatus) return user.membership_status || user.membershipStatus;
+  if ((user.role || "").toUpperCase() === "ROLE_BENEFICIARY") return "BENEFICIARY";
+  return user.policy_id || user.policyId ? "MEMBER" : "PRE_MEMBER";
+}
+
 function normalizeUsernamePart(value) {
   return String(value || "")
     .normalize("NFKD")
@@ -142,6 +148,7 @@ exports.login = async (req, res) => {
         id: user.id,
         role: javaRole,
         policyId,
+        membershipStatus: membershipStatusFor(user),
         deceasedFlag: !!user.deceased_flag,
         authTime: Math.floor(Date.now() / 1000),
       },
@@ -194,6 +201,7 @@ exports.refresh = (req, res) => {
       id: claims.id,
       role: claims.role,
       policyId: claims.policyId || null,
+      membershipStatus: claims.membershipStatus || (claims.role === "BENEFICIARY" ? "BENEFICIARY" : claims.policyId ? "MEMBER" : "PRE_MEMBER"),
       deceasedFlag: claims.deceasedFlag === true,
       authTime,
     }, secret, {
