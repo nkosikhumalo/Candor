@@ -37,6 +37,7 @@ public class RagProperties {
 
     // Retrieval / grounding
     private int topK = 4;
+    private int maxContextChars = 8000;
     // Cosine similarity floor. Below this, we treat the corpus as "not
     // containing an answer" and trigger the fallback rather than pass weak
     // matches to the model. Needs tuning against real sample questions
@@ -72,6 +73,9 @@ public class RagProperties {
 
     public int getTopK() { return topK; }
     public void setTopK(int topK) { this.topK = topK; }
+
+    public int getMaxContextChars() { return maxContextChars; }
+    public void setMaxContextChars(int maxContextChars) { this.maxContextChars = maxContextChars; }
 
     public double getSimilarityThreshold() { return similarityThreshold; }
     public void setSimilarityThreshold(double similarityThreshold) { this.similarityThreshold = similarityThreshold; }
