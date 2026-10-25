@@ -558,6 +558,22 @@ body.dark .hp-cat-price { color: #e8eaf0; }
 body.dark .hp-username-tag { color: #e8eaf0; background: #202941; border-color: #35405e; }
 .hp-primary-action { background: #E4032B; border-color: #E4032B; color: #fff; }
 .hp-primary-action:hover { background: #bd0023; color: #fff; }
+.hp-premember-hero {
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr); gap: 30px;
+  align-items: center; overflow: hidden; margin: 4px 0 35px; padding: 38px;
+  border: 1px solid #E5E7EB; border-radius: 16px; background: #fff;
+}
+body.dark .hp-premember-hero { background: #161b27; border-color: #2a3147; }
+.hp-premember-hero h1 { margin: 8px 0 12px; color: #111827; font-size: clamp(28px, 4vw, 42px); line-height: 1.12; }
+body.dark .hp-premember-hero h1 { color: #e8eaf0; }
+.hp-premember-hero p { max-width: 620px; margin: 0; color: #6B7280; font-size: 15px; line-height: 1.7; }
+.hp-premember-hero small { display: block; max-width: 620px; margin-top: 16px; color: #6B7280; font-size: 12px; line-height: 1.55; }
+.hp-premember-hero > img { width: 100%; height: 310px; object-fit: cover; border-radius: 12px; }
+.hp-premember-eyebrow { color: #E4032B; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.hp-premember-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.hp-premember-actions button { min-height: 44px; }
+.hp-premember-benefits { margin-top: 0; }
+.hp-premember-benefits .hp-cat-card { min-height: 100%; }
 .hp-demo-label { display: block; margin: 10px 0 18px; color: #6B7280; font-size: 12px; line-height: 1.55; }
 .hp-dashboard-benefits { margin-bottom: 0; }
 .hp-membership-title { align-items: flex-start; }
@@ -608,6 +624,10 @@ body.dark .hp-document-upload-copy .hp-file-name { color: #d9e2ff; }
   .hp-document-upload { align-items: flex-start; flex-wrap: wrap; }
   .hp-document-upload input[type="file"] { width: 100%; max-width: none; margin-left: 47px; }
   .hp-username-tag { font-size: 11px; padding: 6px 9px; }
+  .hp-premember-hero { grid-template-columns: 1fr; padding: 24px; }
+  .hp-premember-hero > img { height: 210px; grid-row: 1; }
+  .hp-premember-actions { flex-direction: column; }
+  .hp-premember-actions button { width: 100%; }
 }
 
 /* Brand dot — navy, opposite to the red Medi prefix */

@@ -101,17 +101,19 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { password } = req.body;
-    const loginIdentifier = typeof (req.body.identifier || req.body.email) === "string"
+    const rawLoginIdentifier = typeof (req.body.identifier || req.body.email) === "string"
       ? (req.body.identifier || req.body.email).trim()
       : "";
+    const isEmail = rawLoginIdentifier.includes("@") && !rawLoginIdentifier.startsWith("@");
+    const loginIdentifier = rawLoginIdentifier.replace(/^@/, "").toLowerCase();
 
     if (!loginIdentifier || !password) {
       return res.status(400).json({ message: "Email/username and password are required" });
     }
 
-    const user = loginIdentifier.includes("@")
-      ? await User.findUserByEmail(loginIdentifier.toLowerCase())
-      : await User.findUserByUsername(loginIdentifier.toLowerCase());
+    const user = isEmail
+      ? await User.findUserByEmail(loginIdentifier)
+      : await User.findUserByUsername(loginIdentifier);
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
     const passwordMatch = await bcrypt.compare(password, user.password);

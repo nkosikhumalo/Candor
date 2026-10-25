@@ -17,9 +17,12 @@ async function authRequest(path, options = {}) {
 }
 
 export async function login(identifier, password) {
+  const normalizedIdentifier = typeof identifier === "string"
+    ? identifier.trim().replace(/^@/, "")
+    : identifier;
   return authRequest("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ identifier, password }),
+    body: JSON.stringify({ identifier: normalizedIdentifier, password }),
   });
 }
 

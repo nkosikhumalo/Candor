@@ -172,10 +172,13 @@ export default function Home() {
 
   useEffect(() => {
     if (authReady && !token) navigate("/login", { state: { from: "/home" }, replace: true });
-  }, [token, authReady, navigate]);
+    else if (authReady && token && user && user.role !== "ROLE_BENEFICIARY" && !user.policyId && !["membership", "add-policy"].includes(view)) {
+      navigate("/welcome", { replace: true });
+    }
+  }, [token, authReady, user, navigate, view]);
 
   useEffect(() => {
-    if (!authReady || !token) return undefined;
+    if (!authReady || !token || !user?.policyId) return undefined;
     let cancelled = false;
     apiFetch("/api/claims")
       .then(data => {
@@ -191,7 +194,7 @@ export default function Home() {
         if (!cancelled) setClaimsLoading(false);
       });
     return () => { cancelled = true; };
-  }, [authReady, token]);
+  }, [authReady, token, user?.policyId]);
 
   function openClaimForm() {
     const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ");

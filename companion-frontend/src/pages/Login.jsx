@@ -17,8 +17,6 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const redirectTo = location.state?.from || "/home";
-
   async function handleLogin(e) {
     e.preventDefault();
     setError("");
@@ -26,6 +24,11 @@ function Login() {
     try {
       const { user } = await login(loginIdentifier, password);
       saveAuth(user);
+      const isExistingMember = Boolean(user?.policyId) || user?.role === "ROLE_BENEFICIARY";
+      const requestedPath = location.state?.from;
+      const redirectTo = isExistingMember
+        ? requestedPath || "/home"
+        : requestedPath === "/chat" ? "/chat" : "/welcome";
       navigate(redirectTo, {
         replace: true,
         state: location.state?.backgroundLocation
