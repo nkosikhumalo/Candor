@@ -7,6 +7,7 @@ import "../styles/register.css";
 const STEP_FORM = "form";
 const STEP_CAPTCHA = "captcha";
 const STEP_DONE = "done";
+const DEMO_EMAIL_VERIFICATION = import.meta.env.VITE_DEMO_EMAIL_VERIFICATION === "true";
 
 function usernamePreview(firstName, lastName) {
   const part = value => value
@@ -76,6 +77,17 @@ export default function Register() {
     } finally {
       setEmailBusy(false);
     }
+  }
+
+  function handleDemoEmailVerification() {
+    const email = formData.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Enter a valid email address first.");
+      return;
+    }
+    setEmailError("");
+    setEmailVerified(true);
+    setEmailMessage("Demo verification complete. No email was sent.");
   }
 
   async function handleVerifyEmailOtp() {
@@ -286,13 +298,22 @@ export default function Register() {
                   <label>Email address</label>
                 </div>
                 {!emailVerified && (
-                  <button className="email-otp-button" type="button" onClick={handleSendEmailOtp} disabled={emailBusy}>
-                    {emailBusy ? "Please wait…" : emailOtpSent ? "Resend OTP" : "Send OTP"}
+                  <button
+                    className="email-otp-button"
+                    type="button"
+                    onClick={DEMO_EMAIL_VERIFICATION ? handleDemoEmailVerification : handleSendEmailOtp}
+                    disabled={emailBusy}
+                  >
+                    {DEMO_EMAIL_VERIFICATION ? "Verify email (demo)" : emailBusy ? "Please wait…" : emailOtpSent ? "Resend OTP" : "Send OTP"}
                   </button>
                 )}
-                {emailVerified && <span className="email-verified-badge" role="status">✓ Verified</span>}
+                {emailVerified && (
+                  <span className="email-verified-badge" role="status">
+                    {DEMO_EMAIL_VERIFICATION ? "✓ Demo verified" : "✓ Verified"}
+                  </span>
+                )}
               </div>
-              {emailOtpSent && !emailVerified && (
+              {emailOtpSent && !emailVerified && !DEMO_EMAIL_VERIFICATION && (
                 <div className="email-input-row email-code-row">
                   <div className="field email-code-field">
                     <input
@@ -312,9 +333,13 @@ export default function Register() {
                   </button>
                 </div>
               )}
-              {emailMessage && <p className={emailVerified ? "email-verified-message" : "email-status-message"} role="status">{emailVerified ? "✓ " : ""}{emailMessage}</p>}
+              {emailMessage && <p className={emailVerified && !DEMO_EMAIL_VERIFICATION ? "email-verified-message" : "email-status-message"} role="status">{emailVerified && !DEMO_EMAIL_VERIFICATION ? "✓ " : ""}{emailMessage}</p>}
               {emailError && <span className="field-error" role="alert">{emailError}</span>}
-              {!emailVerified && <span className="email-status-message">Verify your email to continue.</span>}
+              {!emailVerified && (
+                <span className="email-status-message">
+                  {DEMO_EMAIL_VERIFICATION ? "Presentation demo: this does not send or verify an email." : "Verify your email to continue."}
+                </span>
+              )}
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
             </div>
 
