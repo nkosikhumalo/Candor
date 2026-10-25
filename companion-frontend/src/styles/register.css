@@ -148,6 +148,74 @@ h1 {
   line-height: 1.4;
 }
 
+.email-verification-block {
+  margin-bottom: 24px;
+}
+
+.email-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.email-input-field,
+.email-code-field {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+.email-otp-button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  margin-bottom: 10px;
+  padding: 0 16px;
+  border: 1px solid var(--red);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.email-otp-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.email-verified-badge {
+  flex: 0 0 auto;
+  margin-bottom: 20px;
+  color: #278344;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.email-status-message,
+.email-verified-message {
+  display: block;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.email-verified-message {
+  color: #278344;
+}
+
+@media (max-width: 420px) {
+  .email-input-row {
+    gap: 8px;
+  }
+
+  .email-otp-button {
+    padding: 0 11px;
+    font-size: 12px;
+  }
+}
+
 /* Select field */
 .field.select-field {
   margin-bottom: 28px;
