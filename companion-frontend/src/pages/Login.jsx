@@ -11,7 +11,9 @@ function Login() {
 
   const [view, setView] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState(() =>
+    location.state?.username || location.state?.email || ""
+  );
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,7 @@ function Login() {
     setError("");
     setLoading(true);
     try {
-      const { user } = await login(email, password);
+      const { user } = await login(loginIdentifier, password);
       saveAuth(user);
       navigate(redirectTo, {
         replace: true,
@@ -81,17 +83,22 @@ function Login() {
         </p>
 
         <div className="login-card">
+          {location.state?.username && (
+            <p className="login-account-hint" role="status">
+              Your generated username is <strong>@{location.state.username}</strong>.
+            </p>
+          )}
           <form onSubmit={handleLogin}>
             <div className="field">
               <input
-                type="email"
+                type="text"
                 placeholder=" "
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
+                value={loginIdentifier}
+                onChange={(e) => setLoginIdentifier(e.target.value)}
+                autoComplete="username"
                 required
               />
-              <label>Email</label>
+              <label>Email or username</label>
             </div>
 
             <div className="field">
