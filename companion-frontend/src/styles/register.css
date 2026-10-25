@@ -140,6 +140,14 @@ h1 {
   text-transform: uppercase;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* Select field */
 .field.select-field {
   margin-bottom: 28px;
