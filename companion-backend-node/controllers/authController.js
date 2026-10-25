@@ -1,7 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
-const { redis, keyFor } = require("../services/emailOtpService");
 
 const { sessionCookieName, sessionCookieOptions, clearSessionCookie } = require("../middleware/sessionCookie");
 
@@ -89,13 +88,6 @@ exports.register = async (req, res) => {
 
     if (!user) return res.status(409).json({ message: "Email already exists" });
 
-    try {
-      const store = await redis();
-      await store.del(keyFor("verified", email));
-    } catch (error) {
-      console.error("Could not clear signup email verification marker:", error.message);
-    }
-
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
     if (err.code === "23505") {
@@ -109,13 +101,17 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { password } = req.body;
-    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const loginIdentifier = typeof (req.body.identifier || req.body.email) === "string"
+      ? (req.body.identifier || req.body.email).trim()
+      : "";
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({ message: "Email/username and password are required" });
     }
 
-    const user = await User.findUserByEmail(email);
+    const user = loginIdentifier.includes("@")
+      ? await User.findUserByEmail(loginIdentifier.toLowerCase())
+      : await User.findUserByUsername(loginIdentifier.toLowerCase());
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
     const passwordMatch = await bcrypt.compare(password, user.password);
