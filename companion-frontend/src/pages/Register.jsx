@@ -188,7 +188,12 @@ export default function Register() {
       setCreatedUsername(result.user?.username || "");
       setStep(STEP_DONE);
     } catch (err) {
-      setServerError(err.message || "Registration failed. Please try again.");
+      if (err.code === "ACCOUNT_EXISTS") {
+        setFieldErrors((prev) => ({ ...prev, email: err.message }));
+        setServerError("");
+      } else {
+        setServerError(err.message || "Registration failed. Please try again.");
+      }
       if (err.message?.toLowerCase().includes("verify your email")) {
         setEmailVerified(false);
         setEmailError(err.message);

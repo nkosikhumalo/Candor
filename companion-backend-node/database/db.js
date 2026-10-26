@@ -56,6 +56,15 @@ async function initializeSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (username);
     ALTER TABLE users ALTER COLUMN username SET NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx ON users (email);
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM users GROUP BY lower(btrim(email)) HAVING count(*) > 1
+      ) THEN
+        CREATE UNIQUE INDEX IF NOT EXISTS users_email_normalized_unique_idx ON users (lower(btrim(email)));
+      ELSE
+        RAISE WARNING 'Duplicate emails differing by case or whitespace exist; normalized email uniqueness index was not created.';
+      END IF;
+    END $$;
     CREATE SEQUENCE IF NOT EXISTS users_id_seq;
     ALTER SEQUENCE users_id_seq OWNED BY users.id;
     ALTER TABLE users ALTER COLUMN id SET DEFAULT nextval('users_id_seq'::regclass);
@@ -136,7 +145,10 @@ async function createUser(user) {
 
 async function findUserByEmail(email) {
   await initializeSchema();
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+  const result = await pool.query(
+    "SELECT * FROM users WHERE lower(btrim(email)) = lower(btrim($1)) ORDER BY id LIMIT 1",
+    [email]
+  );
   return result.rows[0] || null;
 }
 

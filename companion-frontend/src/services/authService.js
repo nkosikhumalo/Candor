@@ -11,6 +11,7 @@ async function authRequest(path, options = {}) {
   if (!res.ok) {
     const error = new Error(data.message || "Authentication request failed");
     error.status = res.status;
+    error.code = data.code;
     throw error;
   }
   return data;

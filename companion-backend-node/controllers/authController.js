@@ -92,7 +92,12 @@ exports.register = async (req, res) => {
     }
 
     const emailExists = await User.findUserByEmail(email);
-    if (emailExists) return res.status(400).json({ message: "Email already exists" });
+    if (emailExists) {
+      return res.status(409).json({
+        code: "ACCOUNT_EXISTS",
+        message: "An account already uses this email. Log in or reset your password. If you cannot access it, contact support.",
+      });
+    }
 
     const username = await generateUsername(first_name, last_name);
 
@@ -118,12 +123,23 @@ exports.register = async (req, res) => {
       // policy_id auto-generated in userModel if not provided
     });
 
-    if (!user) return res.status(409).json({ message: "Email already exists" });
+    if (!user) {
+      return res.status(409).json({
+        code: "ACCOUNT_EXISTS",
+        message: "An account already uses this email. Log in or reset your password. If you cannot access it, contact support.",
+      });
+    }
 
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
     if (err.code === "23505") {
-      return res.status(409).json({ message: "That email or username is already in use." });
+      if (String(err.constraint || "").includes("email")) {
+        return res.status(409).json({
+          code: "ACCOUNT_EXISTS",
+          message: "An account already uses this email. Log in or reset your password. If you cannot access it, contact support.",
+        });
+      }
+      return res.status(409).json({ message: "That username is already in use. Please try again." });
     }
     console.error("Registration failed:", err.message);
     res.status(500).json({ message: "Server Error" });
