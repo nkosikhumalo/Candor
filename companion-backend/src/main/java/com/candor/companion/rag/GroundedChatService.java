@@ -46,6 +46,7 @@ public class GroundedChatService {
 
     private static final Logger log = LoggerFactory.getLogger(GroundedChatService.class);
     private static final int MAX_RETRIES = 3;
+    private static final int MAX_OPENROUTER_OUTPUT_TOKENS = 512;
     private static final int MAX_HISTORY_MESSAGES = 6;
     private static final int MAX_HISTORY_MESSAGE_CHARS = 900;
 
@@ -437,12 +438,17 @@ public class GroundedChatService {
         while (attempt < MAX_RETRIES) {
             try {
                 List<Map<String, Object>> messages = buildMessages(systemPrompt, history, userQuestion);
+                int maxOutputTokens = Math.min(openRouterMaxTokens, MAX_OPENROUTER_OUTPUT_TOKENS);
+                if (openRouterMaxTokens > maxOutputTokens) {
+                    log.warn("[GroundedChat/OpenRouter] Capping configured max_tokens={} to {} to fit the available credit budget.",
+                            openRouterMaxTokens, maxOutputTokens);
+                }
 
                 Map<String, Object> requestBody = Map.of(
                         "model", openRouterModel,
                         "messages", messages,
                         "temperature", 0.0,
-                        "max_tokens", openRouterMaxTokens
+                        "max_tokens", maxOutputTokens
                 );
 
                 String jsonPayload = objectMapper.writeValueAsString(requestBody);
