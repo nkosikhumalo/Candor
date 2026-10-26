@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCountryCallingCode, getCountries, parsePhoneNumberFromString } from "libphonenumber-js";
 import { register as registerUser, sendRegistrationOtp, verifyRegistrationOtp } from "../services/authService";
 import TurnstileWidget from "../components/TurnstileWidget";
 import "../styles/register.css";
@@ -8,6 +9,19 @@ const STEP_FORM = "form";
 const STEP_CAPTCHA = "captcha";
 const STEP_DONE = "done";
 const DEMO_EMAIL_VERIFICATION = import.meta.env.VITE_DEMO_EMAIL_VERIFICATION === "true";
+const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
+const PHONE_COUNTRIES = getCountries()
+  .map((country) => ({ country, name: COUNTRY_NAMES.of(country) || country, callingCode: getCountryCallingCode(country) }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+function countryFlag(country) {
+  return [...country].map((letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397)).join("");
+}
+
+function parseRegistrationPhone(value, country) {
+  const parsed = parsePhoneNumberFromString(value, country);
+  return parsed?.isValid() ? parsed : null;
+}
 
 function usernamePreview(firstName, lastName) {
   const part = value => value
@@ -40,6 +54,7 @@ export default function Register() {
     last_name: "",
     date_of_birth: "",
     phone: "",
+    phone_country: "ZA",
     email: "",
     password: "",
     confirm_password: "",
@@ -114,7 +129,9 @@ export default function Register() {
     if (!formData.first_name.trim()) errs.first_name = "Required";
     if (!formData.last_name.trim()) errs.last_name = "Required";
     if (!formData.date_of_birth) errs.date_of_birth = "Required";
-    if (!formData.phone.trim()) errs.phone = "Required";
+    const parsedPhone = parseRegistrationPhone(formData.phone.trim(), formData.phone_country);
+    if (!formData.phone.trim()) errs.phone = "Enter your phone number.";
+    else if (!parsedPhone) errs.phone = "Enter a valid phone number for the selected country.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = "Valid email required";
     }
@@ -148,7 +165,7 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         date_of_birth: formData.date_of_birth,
-        phone: formData.phone,
+        phone: parseRegistrationPhone(formData.phone.trim(), formData.phone_country).number,
         turnstileToken,
       });
       setCreatedUsername(result.user?.username || "");
@@ -281,18 +298,40 @@ export default function Register() {
               {fieldErrors.date_of_birth && <span className="field-error">{fieldErrors.date_of_birth}</span>}
             </div>
 
-            {/* Phone — plain field for SA, no country-code dropdown */}
-            <div className="field">
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder=" "
-                inputMode="tel"
-              />
-              <label>Phone number</label>
-              {fieldErrors.phone && <span className="field-error">{fieldErrors.phone}</span>}
+            {/* Phone: country-aware validation; send normalized E.164 to the API. */}
+            <div className="field phone-field">
+              <label className="phone-country-label" htmlFor="phone-country">Country</label>
+              <div className="phone-input-row">
+                <select
+                  id="phone-country"
+                  className="phone-country-select"
+                  value={formData.phone_country}
+                  onChange={(event) => {
+                    setFormData((prev) => ({ ...prev, phone_country: event.target.value }));
+                    setFieldErrors((prev) => ({ ...prev, phone: "" }));
+                  }}
+                  aria-label="Phone country code"
+                >
+                  {PHONE_COUNTRIES.map(({ country, name, callingCode }) => (
+                    <option key={country} value={country}>{countryFlag(country)} {name} (+{callingCode})</option>
+                  ))}
+                </select>
+                <input
+                  id="phone-number"
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder=" "
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  aria-invalid={Boolean(fieldErrors.phone)}
+                  aria-describedby={fieldErrors.phone ? "phone-error" : "phone-hint"}
+                />
+                <label htmlFor="phone-number">Phone number</label>
+              </div>
+              <span className="field-hint" id="phone-hint">Choose your country and enter your number. We’ll save it with the country code.</span>
+              {fieldErrors.phone && <span className="field-error" id="phone-error" role="alert">{fieldErrors.phone}</span>}
             </div>
 
             {/* Email */}
