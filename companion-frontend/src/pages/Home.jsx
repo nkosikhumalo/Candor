@@ -378,10 +378,20 @@ export default function Home() {
         <div className="hp-wrap">
 
           <div className="hp-actions-row">
-            <button className="hp-action-btn hp-primary-action" onClick={() => navigate("/quote")}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-              Calculate a premium
-            </button>
+            {userRole === "POLICYHOLDER" ? (
+              <button className="hp-action-btn hp-primary-action" onClick={() => navigate("/chat", { state: {
+                starterQuestion: "I want to run a what-if premium simulation for my MediCare cover. Guide me through my current monthly premium, current cover amount, the cover amount I want to explore, and the waiting period, then calculate the estimate.",
+                backgroundLocation: location,
+              } })}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                Run a what-if simulation
+              </button>
+            ) : (
+              <button className="hp-action-btn hp-primary-action" onClick={openClaimForm}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                Submit a claim
+              </button>
+            )}
             <button className="hp-action-btn hp-primary-action" onClick={() => setView("add-policy")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
               View benefit guide

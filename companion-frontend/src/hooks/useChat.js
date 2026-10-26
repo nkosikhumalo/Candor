@@ -22,6 +22,13 @@ function chatFailureMessage(err) {
     if (err?.status === 403) {
         return "Your account status does not match this chat endpoint. Sign out and back in to refresh your account, then try again.";
     }
+    if (err?.status === 429) {
+        const retryAfter = Number(err.retryAfter);
+        const wait = Number.isFinite(retryAfter) && retryAfter > 0
+            ? ` Try again in about ${retryAfter} seconds.`
+            : " Wait briefly, then try again.";
+        return `The what-if calculation endpoint returned HTTP 429 (rate limited). This calculation does not use AI model tokens.${wait}`;
+    }
     if (err?.status >= 500) {
         return `The AI backend returned an error (HTTP ${err.status}). Check the Java service logs and AI provider configuration.`;
     }
@@ -259,8 +266,10 @@ export function useChat({
                 `This is a simulation only — not a final quote and it cannot confirm eligibility. Your actual premium and acceptance depend on underwriting. Would you like to talk to an adviser, or run another simulation?`;
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
-        } catch {
-            const errMsg = "I wasn't able to run that simulation right now. Please try again in a moment.";
+        } catch (err) {
+            const errMsg = err?.status === 429
+                ? chatFailureMessage(err)
+                : "I wasn't able to run that simulation right now. Please try again in a moment.";
             setMessages(prev => [...prev, botMsg(errMsg)]);
             if (convId) saveMessage(convId, "bot", errMsg).catch(() => {});
         } finally {
