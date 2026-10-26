@@ -1,6 +1,7 @@
 /** Cookie-backed JWT authentication. The browser never receives the token in JavaScript. */
 const jwt = require("jsonwebtoken");
 const { sessionCookieName } = require("./sessionCookie");
+const { membershipStatusFor, normalizedPolicyId } = require("../services/membershipStatus");
 
 module.exports = function authenticate(req, res, next) {
     const token = req.cookies?.[sessionCookieName];
@@ -30,10 +31,12 @@ module.exports = function authenticate(req, res, next) {
         req.user = {
             id: claims.id || claims.sub,
             role: normalizedRole,
-            policyId: claims.policyId || claims.policy_id || null,
-            membershipStatus: claims.membershipStatus || (normalizedRole === "ROLE_BENEFICIARY"
-                ? "BENEFICIARY"
-                : claims.policyId || claims.policy_id ? "MEMBER" : "PRE_MEMBER"),
+            policyId: normalizedPolicyId(claims.policyId || claims.policy_id),
+            membershipStatus: membershipStatusFor({
+                role: normalizedRole,
+                policyId: claims.policyId || claims.policy_id,
+                membershipStatus: claims.membershipStatus,
+            }),
             deceasedFlag: claims.deceasedFlag === true || claims.deceased_flag === true,
         };
 

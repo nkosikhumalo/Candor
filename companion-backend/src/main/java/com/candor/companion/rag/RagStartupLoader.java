@@ -1,6 +1,7 @@
 package com.candor.companion.rag;
 
-import jakarta.annotation.PostConstruct;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -35,7 +36,7 @@ import java.util.List;
  * and swap the PDF extraction step for a real PDF-to-text parser.
  */
 @Component
-public class RagStartupLoader {
+public class RagStartupLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(RagStartupLoader.class);
 
@@ -52,8 +53,14 @@ public class RagStartupLoader {
         this.chunker = chunker;
     }
 
-    @PostConstruct
-    public void load() {
+    /**
+     * Run ingestion after Spring has created and bound the web server. Render
+     * detects a service by its open port; doing this work in @PostConstruct
+     * held application-context creation open, so Render saw no port while a
+     * newer policy-guide version was being indexed.
+     */
+    @Override
+    public void run(ApplicationArguments args) {
         log.info("[RAG] Starting policy document ingestion...");
         try {
             ClassPathResource resource = new ClassPathResource(DOCUMENT_FILENAME);

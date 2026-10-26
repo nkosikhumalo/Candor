@@ -1,14 +1,14 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
+const { membershipStatusFor, normalizedPolicyId } = require("../services/membershipStatus");
 
 const { sessionCookieName, sessionCookieOptions, clearSessionCookie } = require("../middleware/sessionCookie");
 
 function publicUser(user) {
-  const policyId = user.policyId || user.policy_id || null;
+  const policyId = normalizedPolicyId(user.policyId || user.policy_id);
   const role = user.role || "ROLE_POLICYHOLDER";
-  const membershipStatus = user.membership_status || user.membershipStatus ||
-    (role === "ROLE_BENEFICIARY" ? "BENEFICIARY" : policyId ? "MEMBER" : "PRE_MEMBER");
+  const membershipStatus = membershipStatusFor({ ...user, role, policyId });
   return {
     id: user.id,
     first_name: user.first_name || "",
@@ -20,12 +20,6 @@ function publicUser(user) {
     policyId,
     deceasedFlag: user.deceasedFlag === true || user.deceased_flag === true,
   };
-}
-
-function membershipStatusFor(user) {
-  if (user.membership_status || user.membershipStatus) return user.membership_status || user.membershipStatus;
-  if ((user.role || "").toUpperCase() === "ROLE_BENEFICIARY") return "BENEFICIARY";
-  return user.policy_id || user.policyId ? "MEMBER" : "PRE_MEMBER";
 }
 
 function normalizeUsernamePart(value) {
@@ -138,7 +132,7 @@ exports.login = async (req, res) => {
     }
 
     const javaRole = (user.role || "ROLE_POLICYHOLDER").replace(/^ROLE_/, "");
-    const policyId = user.policy_id;
+    const policyId = normalizedPolicyId(user.policy_id);
     const subject = `user-${javaRole.toLowerCase()}-${user.id}`;
 
     // The BFF signs the same issuer/audience/role claims Java validates. The
@@ -201,7 +195,7 @@ exports.refresh = (req, res) => {
       id: claims.id,
       role: claims.role,
       policyId: claims.policyId || null,
-      membershipStatus: claims.membershipStatus || (claims.role === "BENEFICIARY" ? "BENEFICIARY" : claims.policyId ? "MEMBER" : "PRE_MEMBER"),
+      membershipStatus: membershipStatusFor({ role: claims.role, policyId: claims.policyId, membershipStatus: claims.membershipStatus }),
       deceasedFlag: claims.deceasedFlag === true,
       authTime,
     }, secret, {
