@@ -152,7 +152,7 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = "Valid email required";
     }
-    if (!passwordMeetsPolicy(formData.password)) errs.password = "Choose a password that meets all the requirements below.";
+    if (!passwordMeetsPolicy(formData.password)) errs.password = "Password is too weak. Choose a stronger password.";
     if (formData.password !== formData.confirm_password)
       errs.confirm_password = "Passwords do not match";
     return errs;
@@ -406,17 +406,9 @@ export default function Register() {
 
             {/* Password */}
             <div className="field">
-              <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder=" " autoComplete="new-password" aria-describedby="password-guidance" aria-invalid={Boolean(fieldErrors.password)} />
+              <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder=" " autoComplete="new-password" aria-invalid={Boolean(fieldErrors.password)} />
               <label>Password</label>
               {fieldErrors.password && <span className="field-error">{fieldErrors.password}</span>}
-              <ul className="password-checks" id="password-guidance" aria-label="Password requirements">
-                {PASSWORD_CHECKS.map((check) => {
-                  const passed = check.test(formData.password);
-                  return <li key={check.id} className={passed ? "password-check-passed" : ""}>
-                    <span aria-hidden="true">{passed ? "✓" : "○"}</span> {check.label}
-                  </li>;
-                })}
-              </ul>
             </div>
 
             <div className="field">

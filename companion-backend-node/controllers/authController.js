@@ -88,9 +88,7 @@ exports.register = async (req, res) => {
 
     const passwordIssues = passwordPolicyIssues(password);
     if (passwordIssues.length) {
-      return res.status(400).json({
-        message: `Choose a stronger password. It must have ${passwordIssues.join(", ")}.`,
-      });
+      return res.status(400).json({ message: "Password is too weak. Choose a stronger password." });
     }
 
     const emailExists = await User.findUserByEmail(email);
