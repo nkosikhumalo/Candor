@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ragChat } from "../services/aiService";
 import { apiFetch } from "../services/api";
@@ -28,7 +28,7 @@ function chatFailureMessage(err) {
             ? ` Try again in about ${retryAfter} seconds.`
             : " Wait briefly, then try again.";
         const detail = typeof err.data?.message === "string" ? ` Server message: ${err.data.message}` : "";
-        return `The what-if calculation endpoint returned HTTP 429 (rate limited). This calculation does not use AI model tokens.${detail}${wait}`;
+        return `Candor is temporarily rate-limited.${detail}${wait}`;
     }
     if (err?.status >= 500) {
         return `The AI backend returned an error (HTTP ${err.status}). Check the Java service logs and AI provider configuration.`;
@@ -119,6 +119,17 @@ function requestsWhatIfCalculation(text) {
         || /\b(cover|premium|sum assured)\b.{0,45}\b(increase|decrease|reduce|raise|change)\b/.test(normalized);
 }
 
+function isWhatIfAnswer(step, text) {
+    const value = text.trim();
+    if (step === WI_STEPS.AWAIT_WAITING_PERIOD) {
+        return /^(?:no\s+waiting\s+period|none|0|\d+\s*(?:months?)?)$/i.test(value);
+    }
+    // A calculator question expects a money amount. Treat normal sentences,
+    // policy questions, and benefit exploration as a new chat question instead
+    // of accidentally submitting them as calculator input.
+    return /^(?:r\s*)?\d[\d\s,]*(?:\.\d{1,2})?\s*(?:rand|zar)?$/i.test(value);
+}
+
 let _msgId = 0;
 function nextId() { return ++_msgId; }
 
@@ -139,6 +150,7 @@ export function useChat({
     const { user, clearAuth } = useAuth();
     const [wiStep, setWiStep] = useState(WI_STEPS.IDLE);
     const [wiData, setWiData] = useState({});
+    const wiConversationId = useRef(null);
 
     function botMsg(text, extra = {}) {
         return { id: nextId(), sender: "bot", text, ...extra };
@@ -147,11 +159,18 @@ export function useChat({
         return { id: nextId(), sender: "user", text };
     }
 
+    function clearWhatIfFlow() {
+        setWiStep(WI_STEPS.IDLE);
+        setWiData({});
+        wiConversationId.current = null;
+    }
+
     async function beginWhatIfFlow(convId, { eligibilityQuestion = false } = {}) {
         setIsLoading(true);
         await thinkDelay();
         setWiData({});
         setWiStep(WI_STEPS.AWAIT_CURRENT_PREMIUM);
+        wiConversationId.current = convId || null;
         const intro = eligibilityQuestion
             ? "I can work through a premium estimate with you right here. It can help you explore cover and cost, but it cannot tell you whether you qualify; the insurer decides that through underwriting.\n\nFirst, what is your **current monthly premium** in Rand? You can find it on your policy schedule or debit order."
             : "I can work through a premium estimate with you right here and compare cover amounts. It is an illustration, not a final quote or an eligibility decision.\n\nFirst, what is your **current monthly premium** in Rand? You can find it on your policy schedule or debit order.";
@@ -234,7 +253,9 @@ export function useChat({
 
         if (wiStep === WI_STEPS.AWAIT_WAITING_PERIOD) {
             const allowed = [0, 3, 6, 12, 24];
-            const months = parseInt(text.trim(), 10);
+            const months = /^(?:no\s+waiting\s+period|none)$/i.test(text.trim())
+                ? 0
+                : parseInt(text.trim(), 10);
             if (!allowed.includes(months)) {
                 const msg = botMsg("Please tap one of the waiting period options, or type **0**, **3**, **6**, **12**, or **24**.");
                 setMessages(prev => [...prev, msg]);
@@ -251,6 +272,7 @@ export function useChat({
     async function runSimulation(payload, convId) {
         setWiStep(WI_STEPS.IDLE);
         setWiData({});
+        wiConversationId.current = null;
         setIsLoading(true);
         try {
             const result = await apiFetch("/api/what-if/simulate", {
@@ -269,7 +291,7 @@ export function useChat({
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
         } catch (err) {
             const errMsg = err?.status === 429
-                ? chatFailureMessage(err)
+                ? "The premium simulation service is temporarily rate-limited. Please try the calculation again shortly."
                 : "I wasn't able to run that simulation right now. Please try again in a moment.";
             setMessages(prev => [...prev, botMsg(errMsg)]);
             if (convId) saveMessage(convId, "bot", errMsg).catch(() => {});
@@ -299,6 +321,8 @@ export function useChat({
             return;
         }
 
+        clearWhatIfFlow();
+
         setIsLoading(true);
         try {
             const data = await ragChat(option.message, convId ? String(convId) : undefined, user);
@@ -315,6 +339,7 @@ export function useChat({
 
     // ── Policy context flow (from Home / catalogue) ───────────────────────────
     async function startPolicyContextFlow({ policy, isCatalogue, skipSetMessages = false }) {
+        clearWhatIfFlow();
         if (!skipSetMessages) {
             setMessages([createPolicyContextMessage(policy, isCatalogue)]);
         }
@@ -329,12 +354,20 @@ export function useChat({
         const convId = await ensureConversation(text);
         setMessages(prev => [...prev, userMsg(text)]);
         if (convId) saveMessage(convId, "user", text).catch(() => {});
-        if (wiStep !== WI_STEPS.IDLE) {
+        const currentWhatIf = wiStep !== WI_STEPS.IDLE
+            && wiConversationId.current === convId
+            && isWhatIfAnswer(wiStep, text);
+        if (currentWhatIf) {
             setIsLoading(true);
             await thinkDelay();
             await handleWhatIfStep(text, convId);
             setIsLoading(false);
             return;
+        }
+        if (wiStep !== WI_STEPS.IDLE) {
+            // The user changed topic or conversation. Drop the unfinished
+            // calculator state so normal policy questions go to grounded RAG.
+            clearWhatIfFlow();
         }
         if (requestsWhatIfCalculation(text)) {
             const asksEligibility = /\b(qualify|qualifies|qualified|eligible|eligibility|underwriting)\b/i.test(text);
@@ -365,6 +398,8 @@ export function useChat({
             await beginWhatIfFlow(convId);
             return;
         }
+
+        clearWhatIfFlow();
 
         setIsLoading(true);
         try {

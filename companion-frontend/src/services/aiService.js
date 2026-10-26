@@ -7,10 +7,25 @@ export async function ragChat(question, conversationId, user) {
     const endpoint = isPreMemberAccount(user)
         ? "/api/rag/pre-member-chat"
         : "/api/rag/chat";
-    const data = await apiFetch(endpoint, {
+    const request = () => apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify({ question, conversationId }),
     });
+    let data;
+    try {
+        data = await request();
+    } catch (error) {
+        // Java's RAG controller does not emit 429 responses; these are
+        // transient upstream/hosting limits. Retry once after the suggested
+        // delay so a temporary edge limit does not immediately fail chat.
+        if (error?.status !== 429) throw error;
+        const retryAfter = Number(error.retryAfter);
+        const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+            ? Math.min(retryAfter * 1000, 5000)
+            : 1200;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        data = await request();
+    }
     // Backend returns { answer, conversationId }
     return { ...data, reply: data.answer };
 }
