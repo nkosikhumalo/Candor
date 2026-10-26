@@ -27,7 +27,8 @@ function chatFailureMessage(err) {
         const wait = Number.isFinite(retryAfter) && retryAfter > 0
             ? ` Try again in about ${retryAfter} seconds.`
             : " Wait briefly, then try again.";
-        return `The what-if calculation endpoint returned HTTP 429 (rate limited). This calculation does not use AI model tokens.${wait}`;
+        const detail = typeof err.data?.message === "string" ? ` Server message: ${err.data.message}` : "";
+        return `The what-if calculation endpoint returned HTTP 429 (rate limited). This calculation does not use AI model tokens.${detail}${wait}`;
     }
     if (err?.status >= 500) {
         return `The AI backend returned an error (HTTP ${err.status}). Check the Java service logs and AI provider configuration.`;

@@ -89,6 +89,19 @@ function proxyToJava(req, res, path) {
                 code: "UPSTREAM_AUTH_ERROR",
             });
         }
+        if (proxyRes.statusCode === 429) {
+            const retryAfter = proxyRes.headers["retry-after"] || "not provided";
+            let responseBody = "";
+            proxyRes.on("data", (chunk) => {
+                if (responseBody.length < 512) responseBody += chunk.toString().slice(0, 512 - responseBody.length);
+            });
+            proxyRes.on("end", () => {
+                console.warn(`[proxy] Java returned HTTP 429 path=${path} retryAfter=${retryAfter} body=${responseBody || "<empty>"}`);
+            });
+            if (proxyRes.headers["retry-after"]) {
+                res.setHeader("Retry-After", proxyRes.headers["retry-after"]);
+            }
+        }
         res.status(proxyRes.statusCode);
         // Ensure JSON responses are readable by the browser CORS stack
         const contentType = proxyRes.headers["content-type"];
