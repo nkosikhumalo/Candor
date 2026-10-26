@@ -7,6 +7,8 @@ import com.candor.companion.rag.GroundedChatService;
 import com.candor.companion.rag.RagProperties;
 import com.candor.companion.rag.RagRetrievalService;
 import com.candor.companion.security.CompanionPrincipal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +22,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/rag")
 public class RagController {
+
+    private static final Logger log = LoggerFactory.getLogger(RagController.class);
 
     private final RagRetrievalService retrievalService;
     private final GroundedChatService groundedChatService;
@@ -65,6 +69,7 @@ public class RagController {
             return ResponseEntity.ok(Map.of("answer", context.get(), "grounded", true));
 
         } catch (Exception e) {
+            log.error("[RAG] Query failed subject={} policyId={}", userId, policyId, e);
             auditLogger.log(userId, policyId, role, AuditAction.RAG_QUERY,
                     Map.of("question", request.question(), "error", e.getMessage()),
                     false, AuditStatus.REJECTED);
@@ -100,6 +105,8 @@ public class RagController {
             return ResponseEntity.ok(Map.of("answer", answer, "conversationId", conversationId));
 
         } catch (Exception e) {
+            log.error("[RAG] Chat failed subject={} policyId={} conversationId={}",
+                    userId, policyId, conversationId, e);
             auditLogger.log(userId, policyId, role, AuditAction.RAG_CHAT,
                     Map.of("question", request.question(), "error", e.getMessage()),
                     false, AuditStatus.REJECTED);

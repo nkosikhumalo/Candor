@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Raw JDBC connection to the SQLite file, kept independent of this
@@ -25,6 +26,15 @@ public class SqliteConnectionProvider {
     }
 
     public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection("jdbc:sqlite:" + props.getDbPath());
+        Connection connection = DriverManager.getConnection("jdbc:sqlite:" + props.getDbPath());
+        try (Statement statement = connection.createStatement()) {
+            // Requests and chat-history writes share this SQLite file. Let a
+            // concurrent writer finish instead of surfacing SQLITE_BUSY as HTTP 500.
+            statement.execute("PRAGMA busy_timeout = 10000");
+            return connection;
+        } catch (SQLException error) {
+            connection.close();
+            throw error;
+        }
     }
 }
