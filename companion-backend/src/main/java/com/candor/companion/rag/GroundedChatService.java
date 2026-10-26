@@ -47,8 +47,8 @@ public class GroundedChatService {
     private static final Logger log = LoggerFactory.getLogger(GroundedChatService.class);
     private static final int MAX_RETRIES = 3;
     private static final int MAX_OPENROUTER_OUTPUT_TOKENS = 512;
-    private static final int MAX_HISTORY_MESSAGES = 6;
-    private static final int MAX_HISTORY_MESSAGE_CHARS = 900;
+    private static final int MAX_HISTORY_MESSAGES = 4;
+    private static final int MAX_HISTORY_MESSAGE_CHARS = 400;
 
     @Value("${ai.gateway.base-url}")
     private String baseUrl;
@@ -184,7 +184,9 @@ public class GroundedChatService {
 
         // Step 3: Pass the conversation history to the model as well as using it
         // for follow-up retrieval, so it can refer to prior details naturally.
-        log.info("[GroundedChat] conversationId={} historyTurns={}", conversationId, history.size());
+        int historyChars = history.stream().mapToInt(turn -> turn.getOrDefault("content", "").length()).sum();
+        log.info("[GroundedChat] conversationId={} historyTurns={} contextChars={} systemPromptChars={} historyChars={}",
+                conversationId, history.size(), contextBlock.length(), systemPrompt.length(), historyChars);
 
         // Step 4: Select provider and call with full context bundle
         String rawResponse;
