@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 
-function ChatHeader({ openSidebar, onClose }) {
+function ChatHeader({ openSidebar, onClose, homePath = "/home", audienceLabel = "AI ASSISTANT" }) {
     const navigate = useNavigate();
     const { darkMode, toggleTheme } = useTheme();
 
@@ -15,7 +15,7 @@ function ChatHeader({ openSidebar, onClose }) {
                         <line x1="3" y1="18" x2="21" y2="18" />
                     </svg>
                 </button>
-                <button className="back-home-btn" onClick={onClose || (() => navigate("/home"))} aria-label={onClose ? "Close chat" : "Return home"}>
+                <button className="back-home-btn" onClick={onClose || (() => navigate(homePath))} aria-label={onClose ? "Close chat" : "Return home"}>
                     {onClose ? "Close" : (
                         <>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14" style={{ marginRight: 4 }}>
@@ -29,7 +29,7 @@ function ChatHeader({ openSidebar, onClose }) {
 
             <div className="brand">
                 <div className="brand-name">Medi<span>Care</span><span className="brand-dot">.</span></div>
-                <div className="brand-sub">AI ASSISTANT</div>
+                <div className="brand-sub">{audienceLabel}</div>
             </div>
 
             <div className="controls">
