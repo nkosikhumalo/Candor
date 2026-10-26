@@ -12,6 +12,22 @@ const WI_STEPS = {
     AWAIT_WAITING_PERIOD: "AWAIT_WAITING_PERIOD",
 };
 
+function chatFailureMessage(err) {
+    if (err?.data?.code === "UPSTREAM_AUTH_ERROR") {
+        return "Java rejected the session token. Sign out and back in, then try again.";
+    }
+    if (err?.status === 502 || err?.message?.includes("Upstream service unavailable")) {
+        return "The AI service is not reachable. Check that Node's JAVA_SERVICE_URL points to the current Java service URL.";
+    }
+    if (err?.status === 403) {
+        return "Your account status does not match this chat endpoint. Sign out and back in to refresh your account, then try again.";
+    }
+    if (err?.status >= 500) {
+        return `The AI backend returned an error (HTTP ${err.status}). Check the Java service logs and AI provider configuration.`;
+    }
+    return "The AI request failed. Please try again in a moment.";
+}
+
 // Cover options shown as tappable chips — pulled from real plan data
 export const COVER_OPTIONS = [
     { label: "R 250 000", value: 250000, plan: "Essential Smart" },
@@ -275,13 +291,13 @@ export function useChat({
 
         setIsLoading(true);
         try {
-            const data = await ragChat(option.message, convId ? String(convId) : undefined, user?.membershipStatus);
+            const data = await ragChat(option.message, convId ? String(convId) : undefined, user);
             const reply = data.reply || data.answer || "No response";
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
         } catch (err) {
             if (err.code === "UNAUTHORIZED") { clearAuth(); window.location.href = "/login"; return; }
-            setMessages(prev => [...prev, botMsg("Sorry, something went wrong. Please try again.")]);
+            setMessages(prev => [...prev, botMsg(chatFailureMessage(err))]);
         } finally {
             setIsLoading(false);
         }
@@ -317,18 +333,13 @@ export function useChat({
         }
         setIsLoading(true);
         try {
-            const data = await ragChat(text, convId ? String(convId) : undefined, user?.membershipStatus);
+            const data = await ragChat(text, convId ? String(convId) : undefined, user);
             const reply = data.reply || data.answer || "No response";
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
         } catch (err) {
             if (err.code === "UNAUTHORIZED") { clearAuth(); window.location.href = "/login"; return; }
-            const errMsg = err.status === 502 || err.message?.includes("Upstream service unavailable")
-                ? "The AI service is not reachable right now. Check that the Java service is running and that JAVA_SERVICE_URL points to its current URL."
-                : err.message?.includes("unavailable")
-                    ? "The AI service is temporarily unavailable. Please try again in a moment."
-                : "Sorry, something went wrong. Please try again.";
-            setMessages(prev => [...prev, botMsg(errMsg)]);
+            setMessages(prev => [...prev, botMsg(chatFailureMessage(err))]);
         } finally {
             setIsLoading(false);
         }
@@ -347,16 +358,13 @@ export function useChat({
 
         setIsLoading(true);
         try {
-            const data = await ragChat(card.firstMessage, convId ? String(convId) : undefined, user?.membershipStatus);
+            const data = await ragChat(card.firstMessage, convId ? String(convId) : undefined, user);
             const reply = data.reply || data.answer || "No response";
             setMessages(prev => [...prev, botMsg(reply)]);
             if (convId) saveMessage(convId, "bot", reply).catch(() => {});
         } catch (err) {
             if (err.code === "UNAUTHORIZED") { clearAuth(); window.location.href = "/login"; return; }
-            const errMsg = err.status === 502 || err.message?.includes("Upstream service unavailable")
-                ? "The AI service is not reachable right now. Check that the Java service is running and that JAVA_SERVICE_URL points to its current URL."
-                : "Sorry, something went wrong. Please try again.";
-            setMessages(prev => [...prev, botMsg(errMsg)]);
+            setMessages(prev => [...prev, botMsg(chatFailureMessage(err))]);
         } finally {
             setIsLoading(false);
         }
