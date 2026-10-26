@@ -52,6 +52,7 @@ function formatAssistantMessage(value) {
             .replace("The AI summarizer is temporarily unavailable, but I found these passages in the MediCare guide:", "I found relevant information in the MediCare guide:")
             .replace(/\s*_{3,}\s*(?:[—–-]\s*)?Appendix\s+\d+[^*\n]*/gi, "")
             .replace(/\s*[—–-]\s*Appendix\s+\d+[^*\n]*/gi, "")
+            .replace(/(^|\n)([^*\n]{0,100}—\s*Age limits)\s+_{3,}[^*\n]*/gi, "$1$2")
             .replace(/^(\s*\*\*[^*\n]+?)\s+_{3,}[^*\n]*(\*\*\s*)$/gm, "$1$2")
             .replace(/_{3,}/g, "")
             .replace(/Please use this section in conjunction with Appendix\s+\d+\.?/gi, "")
@@ -70,10 +71,45 @@ function formatAssistantMessage(value) {
             return cells.length ? `- ${cells.join(" — ")}` : "";
         }).join("\n");
 
-        return text
-            .replace(/^\s*\*{1,2}(.*?)\*{1,2}\s*$/gm, "**$1**")
+        text = text
+            .replace(/^(I found relevant information in the MediCare guide:)\s*/i, "$1\n\n")
+            .replace(/^\*\*([^*\n]+)\*\*\s*$/gm, "### $1\n")
+            .replace(/^\s*\*{1,2}[A-Za-z][^\n.!?]{0,45}(?:…|\.\.\.)\*{0,2}\s*$/gm, "")
+            .replace(/^([^\n]*?)(?:…|\.\.\.)\s*$/gm, (line, before) => {
+                const sentence = before.match(/[\s\S]*[.!?](?=\s|$)/);
+                return sentence ? sentence[0].trimEnd() : "";
+            })
             .replace(/\n{3,}/g, "\n\n")
             .trim();
+
+        // Retrieval may return overlapping chunks from the same guide section.
+        // Merge those chunks under one heading and suppress duplicate paragraphs.
+        const disclaimerIndex = text.indexOf("These are guide excerpts");
+        const disclaimer = disclaimerIndex >= 0 ? text.slice(disclaimerIndex).trim() : "";
+        const excerptText = disclaimerIndex >= 0 ? text.slice(0, disclaimerIndex).trim() : text;
+        const pieces = excerptText.split(/(?=^### )/m);
+        const intro = pieces.shift()?.trim() || "";
+        const sectionMap = new Map();
+        for (const piece of pieces) {
+            const [headingLine, ...bodyLines] = piece.trim().split("\n");
+            if (!headingLine?.startsWith("### ")) continue;
+            const heading = headingLine.slice(4).trim();
+            const body = bodyLines.join("\n").trim();
+            const existing = sectionMap.get(heading) || [];
+            const seen = new Set(existing.map((paragraph) => paragraph.replace(/\s+/g, " ").trim().toLowerCase()));
+            for (const paragraph of body.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean)) {
+                const key = paragraph.replace(/\s+/g, " ").toLowerCase();
+                if (!seen.has(key)) {
+                    existing.push(paragraph);
+                    seen.add(key);
+                }
+            }
+            sectionMap.set(heading, existing);
+        }
+        const sections = [...sectionMap.entries()].map(([heading, paragraphs]) =>
+            `### ${heading}\n\n${paragraphs.join("\n\n")}`
+        );
+        return [intro, sections.join("\n\n"), disclaimer].filter(Boolean).join("\n\n");
     }
 
     // Preserve AI output that already contains Markdown list/heading structure.
