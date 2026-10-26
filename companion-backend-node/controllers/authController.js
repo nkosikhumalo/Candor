@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { parsePhoneNumberFromString } = require("libphonenumber-js");
 const User = require("../models/userModel");
 const { membershipStatusFor, normalizedPolicyId } = require("../services/membershipStatus");
 
@@ -65,6 +66,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "Enter a valid email address." });
     }
 
+    const parsedPhone = typeof phone === "string" ? parsePhoneNumberFromString(phone) : null;
+    if (!parsedPhone || !parsedPhone.isValid() || !parsedPhone.number.startsWith("+")) {
+      return res.status(400).json({ message: "Enter a valid phone number with its country code." });
+    }
+
     const emailExists = await User.findUserByEmail(email);
     if (emailExists) return res.status(400).json({ message: "Email already exists" });
 
@@ -86,7 +92,7 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       role: normalizedRole,
       deceased_flag: false,
-      phone,
+      phone: parsedPhone.number,
       date_of_birth,
       membership_status: "PRE_MEMBER",
       // policy_id auto-generated in userModel if not provided
