@@ -1,4 +1,5 @@
 import { useState } from "react";
+import FaceCapture from "./FaceCapture";
 
 const BENEFITS = [
   "Death Benefit",
@@ -29,6 +30,7 @@ export default function MembershipApplication({ user, onBack }) {
   const [selectedBenefits, setSelectedBenefits] = useState([]);
   const [files, setFiles] = useState({});
   const [fileError, setFileError] = useState("");
+  const [faceCaptured, setFaceCaptured] = useState(false);
   const [requestReference, setRequestReference] = useState("");
 
   function selectFile(id, file) {
@@ -57,7 +59,7 @@ export default function MembershipApplication({ user, onBack }) {
 
   function requestReview(event) {
     event.preventDefault();
-    if (!selectedBenefits.length || REQUIRED_DOCUMENTS.some(document => !files[document.id])) return;
+    if (!faceCaptured || !selectedBenefits.length || REQUIRED_DOCUMENTS.some(document => !files[document.id])) return;
     setRequestReference(`DEMO-${Date.now().toString().slice(-8)}`);
   }
 
@@ -76,7 +78,7 @@ export default function MembershipApplication({ user, onBack }) {
         </div>
 
         <div className="hp-membership-notice" role="note">
-          <strong>Demo document checklist.</strong> The technical guide says requirements depend on the benefits selected and underwriting. The checklist below is for this presentation flow; it is not an official universal insurer checklist. Do not select real identity, medical, or banking documents here: this prototype does not upload files or notify a human reviewer.
+          <strong>Demo document checklist.</strong> The technical guide says requirements depend on the benefits selected and underwriting. The checklist below is for this presentation flow; it is not an official universal insurer checklist. This prototype does not upload files or notify a human reviewer. The selfie remains in your browser and is not used to verify identity.
         </div>
 
         {requestReference ? (
@@ -136,9 +138,14 @@ export default function MembershipApplication({ user, onBack }) {
               {fileError && <p className="hp-membership-error" role="alert">{fileError}</p>}
             </section>
 
+            <section className="hp-membership-card">
+              <div className="hp-membership-section-heading"><span>04</span><div><h2>Photo confirmation</h2><p>Take a front-camera selfie before requesting review.</p></div></div>
+              <FaceCapture onCaptureChange={setFaceCaptured} label="Applicant selfie" />
+            </section>
+
             <div className="hp-membership-submit-row">
               <p>Premiums, acceptance, and document requirements are determined after benefit selection and underwriting. This action only demonstrates the human-review step.</p>
-              <button type="submit" className="hp-btn-primary hp-review-button" disabled={!selectedBenefits.length || REQUIRED_DOCUMENTS.some(document => !files[document.id])}>
+              <button type="submit" className="hp-btn-primary hp-review-button" disabled={!faceCaptured || !selectedBenefits.length || REQUIRED_DOCUMENTS.some(document => !files[document.id])}>
                 Request human review
               </button>
             </div>

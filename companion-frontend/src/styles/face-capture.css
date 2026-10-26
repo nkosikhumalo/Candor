@@ -1,0 +1,20 @@
+.face-capture {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+body.dark .face-capture { background: #111722; border-color: #2a3147; }
+.face-capture-copy strong { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.face-capture-copy strong span { color: #b42318; font-size: 11px; text-transform: uppercase; }
+.face-capture-copy p, .face-capture-note { margin: 5px 0 0; color: #6b7280; font-size: 12px; line-height: 1.5; }
+.face-capture-controls, .face-capture-preview-wrap { display: grid; justify-items: start; gap: 10px; }
+.face-capture-video, .face-capture-preview { display: block; width: min(100%, 360px); aspect-ratio: 4 / 3; border-radius: 9px; background: #111827; object-fit: cover; }
+.face-capture-preview { object-position: center; }
+.face-capture-complete { color: #16794a; font-size: 13px; font-weight: 700; }
+.face-capture-error { margin: 0; color: #b42318; font-size: 12px; }
+body.dark .face-capture-copy p, body.dark .face-capture-note { color: #a8b0c0; }
+body.dark .face-capture-complete { color: #7dd3a8; }

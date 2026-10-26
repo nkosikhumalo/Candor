@@ -4,6 +4,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { isPreMemberAccount } from "../services/accountStatus";
 import MembershipApplication from "../components/MembershipApplication";
+import FaceCapture from "../components/FaceCapture";
 import "../styles/home.css";
 import { apiFetch } from "../services/api";
 
@@ -152,6 +153,7 @@ export default function Home() {
   const [claimsError, setClaimsError] = useState("");
   const [claimFormOpen, setClaimFormOpen] = useState(false);
   const [claimSubmitting, setClaimSubmitting] = useState(false);
+  const [claimFaceCaptured, setClaimFaceCaptured] = useState(false);
   const [claimError, setClaimError] = useState("");
   const [claimNotice, setClaimNotice] = useState("");
   const [claimForm, setClaimForm] = useState({
@@ -202,11 +204,16 @@ export default function Home() {
     setClaimForm(current => ({ ...current, claimant_name: current.claimant_name || name }));
     setClaimError("");
     setClaimNotice("");
+    setClaimFaceCaptured(false);
     setClaimFormOpen(true);
   }
 
   async function submitClaim(event) {
     event.preventDefault();
+    if (!claimFaceCaptured) {
+      setClaimError("Take a front-camera selfie before sending the claim.");
+      return;
+    }
     setClaimSubmitting(true);
     setClaimError("");
     try {
@@ -218,6 +225,7 @@ export default function Home() {
       setClaimsError("");
       setClaimNotice(data.message || "Your claim has been submitted.");
       setClaimForm({ claim_type: 'LIFE_COVER', claimant_name: "", claimant_relationship: "", deceased_name: "", deceased_document_type: 'ID', deceased_id_number: "", passport_country: "", date_of_death: "", notes: "" });
+      setClaimFaceCaptured(false);
       setClaimFormOpen(false);
     } catch (error) {
       setClaimError(error.message || "We could not submit your claim. Please try again.");
@@ -583,10 +591,13 @@ export default function Home() {
                   </ul>
                   <span>You can submit this form now; our team may request these documents during review.</span>
                 </div>
+                <div className="hp-claim-face">
+                  <FaceCapture onCaptureChange={setClaimFaceCaptured} label="Claimant selfie" />
+                </div>
                 {claimError && <p className="hp-claim-error" role="alert">{claimError}</p>}
                 <div className="hp-claim-form-actions">
                   <button type="button" className="hp-btn-ghost" onClick={() => setClaimFormOpen(false)} disabled={claimSubmitting}>Cancel</button>
-                  <button type="submit" className="hp-btn-primary" disabled={claimSubmitting}>{claimSubmitting ? "Submitting…" : "Send claim"}</button>
+                  <button type="submit" className="hp-btn-primary" disabled={claimSubmitting || !claimFaceCaptured}>{claimSubmitting ? "Submitting…" : "Send claim"}</button>
                 </div>
               </form>
             </div>

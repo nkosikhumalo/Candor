@@ -751,7 +751,7 @@ body.dark .hp-claim-form input, body.dark .hp-claim-form select, body.dark .hp-c
   background: #0e1117; border-color: #3a435a; color: #e8eaf0;
 }
 .hp-claim-form input:focus, .hp-claim-form select:focus, .hp-claim-form textarea:focus { outline: 2px solid #0F1E4A; outline-offset: 1px; }
-.hp-claim-notes, .hp-claim-docs, .hp-claim-form-actions, .hp-claim-form > .hp-claim-error { grid-column: 1 / -1; }
+.hp-claim-notes, .hp-claim-docs, .hp-claim-face, .hp-claim-form-actions, .hp-claim-form > .hp-claim-error { grid-column: 1 / -1; }
 .hp-claim-notes > span { font-weight: 400; color: #6B7280 !important; }
 .hp-claim-docs { padding: 13px 15px; background: #F9FAFB; border-radius: 9px; color: #374151; font-size: 12px; line-height: 1.55; }
 body.dark .hp-claim-docs { background: #1e2535; color: #c5cad6; }
@@ -763,7 +763,7 @@ body.dark .hp-claim-docs { background: #1e2535; color: #c5cad6; }
 @media (max-width: 600px) {
   .hp-claim-modal { max-height: calc(100vh - 20px); }
   .hp-claim-form { grid-template-columns: 1fr; }
-  .hp-claim-notes, .hp-claim-docs, .hp-claim-form-actions, .hp-claim-form > .hp-claim-error { grid-column: auto; }
+  .hp-claim-notes, .hp-claim-docs, .hp-claim-face, .hp-claim-form-actions, .hp-claim-form > .hp-claim-error { grid-column: auto; }
   .hp-claim-form-actions { flex-direction: column-reverse; }
   .hp-claim-form-actions button { width: 100%; }
 }

@@ -12,6 +12,19 @@ import { isPreMemberAccount } from "../services/accountStatus";
 
 import "../styles/chat.css";
 
+function isBroadMemberHelpStarter(question) {
+    if (typeof question !== "string") return false;
+    const normalized = question.toLowerCase();
+    const mentionsMember = /\b(policyholder|beneficiary|member)\b/.test(normalized);
+    const asksForGeneralHelp = /\b(help|understand|assist)\b/.test(normalized);
+    const supportTopics = [
+        /\bbenefits?\b/.test(normalized),
+        /\bpolic(?:y|ies)|terms?\b/.test(normalized),
+        /\bclaims?\b/.test(normalized),
+    ].filter(Boolean).length;
+    return mentionsMember && asksForGeneralHelp && supportTopics >= 2;
+}
+
 function getInitialMessages(state) {
     if (state?.policyCard) return [createPolicyContextMessage(state.policyCard, false)];
     if (state?.catalogueCard) return [createPolicyContextMessage(state.catalogueCard, true)];
@@ -49,6 +62,15 @@ function Chat({ popup = false, onClose }) {
         const question = location.state?.starterQuestion;
         if (!authReady || !token || !question || starterQuestionSent.current) return;
         starterQuestionSent.current = true;
+        if (isBroadMemberHelpStarter(question)) {
+            navigate("/chat", {
+                replace: true,
+                state: location.state?.backgroundLocation
+                    ? { backgroundLocation: location.state.backgroundLocation }
+                    : null,
+            });
+            return;
+        }
         void sendText(question);
         navigate("/chat", {
             replace: true,

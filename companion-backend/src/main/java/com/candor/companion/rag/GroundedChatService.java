@@ -290,6 +290,25 @@ public class GroundedChatService {
         boolean asksWhatTheBusinessHas = asksAvailability && containsAny(words, Set.of(
                 "you", "your", "guys", "we", "our", "medicare", "company", "do", "does"));
 
+        boolean asksForGeneralHelp = containsAny(words, Set.of("help", "understand", "assist"));
+        int broadSupportAreas = (containsAny(words, Set.of("benefit", "benefits")) ? 1 : 0)
+                + (containsAny(words, Set.of("policy", "policies", "term", "terms", "condition", "conditions")) ? 1 : 0)
+                + (containsAny(words, Set.of("claim", "claims")) ? 1 : 0);
+        boolean namesSpecificBenefit = containsAny(words, Set.of(
+                "funeral", "death", "education", "disability", "impairment", "income",
+                "illness", "hiv", "homeloan", "mortgage", "estate", "business"));
+
+        // Broad dashboard starter prompts are invitations to begin a conversation,
+        // not answerable policy questions. Offer focused choices instead of sending
+        // a compound, low-signal query through document retrieval.
+        if (asksForGeneralHelp && broadSupportAreas >= 3 && !namesSpecificBenefit) {
+            return "Of course. Which would you like to look at first?\n\n"
+                    + "- A specific benefit, such as Funeral Benefit or Death Benefit\n"
+                    + "- A policy term, condition, or exclusion\n"
+                    + "- Claim steps or required documents\n\n"
+                    + "Ask about one item and I’ll look for the relevant guide details. Your policy schedule determines which benefits apply to you.";
+        }
+
         if ((productTopic && asksAvailability) || asksWhatTheBusinessHas) {
             return "MediCare's life policy can combine benefits in one policy. The guide documents these options:\n\n"
                     + "**Life and family**\n"

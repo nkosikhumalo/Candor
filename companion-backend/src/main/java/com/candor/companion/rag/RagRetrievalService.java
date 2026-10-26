@@ -32,6 +32,11 @@ public class RagRetrievalService {
         this.repository = repository;
         this.embeddingClient = embeddingClient;
         this.props = props;
+        if (props.isUseMock()) {
+            log.warn("[RagRetrieval] Keyword mode is active; stored embedding vectors will not be searched.");
+        } else {
+            log.info("[RagRetrieval] Vector mode is active; using {} for query embeddings.", props.getEmbeddingModel());
+        }
     }
 
     /**
@@ -74,6 +79,11 @@ public class RagRetrievalService {
     public Optional<String> buildGroundedContext(String query, boolean claimsMode) throws SQLException {
         List<RetrievedChunk> chunks = claimsMode ? retrieveForClaims(query) : retrieve(query);
         if (chunks.isEmpty()) {
+            if (props.isUseMock()) {
+                log.info("[RagRetrieval] Keyword search returned no policy chunks.");
+            } else {
+                log.info("[RagRetrieval] Vector search returned no chunks above similarity threshold {}.", props.getSimilarityThreshold());
+            }
             return Optional.empty();
         }
         StringBuilder sb = new StringBuilder();
