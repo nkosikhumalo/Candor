@@ -10,12 +10,14 @@ function membershipStatusFor(user = {}) {
   const role = String(user.role || "").toUpperCase();
   if (BENEFICIARY_ROLES.has(role)) return "BENEFICIARY";
 
+  // The linked policy is the source of truth for policyholders. Older rows
+  // can still say PRE_MEMBER after a policy was attached to the account.
+  if (normalizedPolicyId(user.policy_id || user.policyId)) return "MEMBER";
+
   const storedStatus = String(user.membership_status || user.membershipStatus || "").toUpperCase();
   if (NON_MEMBER_STATUSES.has(storedStatus)) return storedStatus;
 
-  // A policyholder is a member only when the account is linked to a policy.
-  // This also repairs stale MEMBER statuses in existing database rows/JWTs.
-  return normalizedPolicyId(user.policy_id || user.policyId) ? "MEMBER" : "PRE_MEMBER";
+  return "PRE_MEMBER";
 }
 
 module.exports = { membershipStatusFor, normalizedPolicyId };
