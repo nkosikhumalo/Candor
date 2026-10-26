@@ -52,8 +52,28 @@ function formatAssistantMessage(value) {
             .replace("The AI summarizer is temporarily unavailable, but I found these passages in the MediCare guide:", "I found relevant information in the MediCare guide:")
             .replace(/\s*_{3,}\s*(?:[—–-]\s*)?Appendix\s+\d+[^*\n]*/gi, "")
             .replace(/\s*[—–-]\s*Appendix\s+\d+[^*\n]*/gi, "")
-            .replace(/Please use this section in conjunction with Appendix\s+\d+\.?/gi, "");
-        return text;
+            .replace(/^(\s*\*\*[^*\n]+?)\s+_{3,}[^*\n]*(\*\*\s*)$/gm, "$1$2")
+            .replace(/_{3,}/g, "")
+            .replace(/Please use this section in conjunction with Appendix\s+\d+\.?/gi, "")
+            .replace(/^\s*(?:Myriad technical guide|technical guide)\s*[—–-].*$/gim, "")
+            .replace(/^\s*Page\s+\d+\s*$/gim, "");
+
+        // Some source-guide tables are malformed and cannot be parsed as
+        // Markdown tables. Turn their cells into ordinary list items so users
+        // never see pipes, table separators, or HTML break tags.
+        text = text.split("\n").map((line) => {
+            if (!line.includes("|") || /^\s*\|?\s*:?-{3,}:?\s*\|?\s*$/.test(line)) return line;
+            const cells = line.split("|")
+                .map((cell) => cell.trim())
+                .filter(Boolean)
+                .filter((cell) => !/^:?-{3,}:?$/.test(cell));
+            return cells.length ? `- ${cells.join(" — ")}` : "";
+        }).join("\n");
+
+        return text
+            .replace(/^\s*\*{1,2}(.*?)\*{1,2}\s*$/gm, "**$1**")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
     }
 
     // Preserve AI output that already contains Markdown list/heading structure.
