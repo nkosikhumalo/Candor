@@ -8,6 +8,7 @@ import ChatInput from "../components/ChatInput";
 import { useAuth } from "../context/AuthContext";
 import { useChat, createPolicyContextMessage } from "../hooks/useChat";
 import { getConversations, getMessages } from "../services/chatService";
+import { isPreMemberAccount } from "../services/accountStatus";
 
 import "../styles/chat.css";
 
@@ -22,6 +23,7 @@ function Chat({ popup = false, onClose }) {
     const navigate = useNavigate();
     const location = useLocation();
     const userId = user?.id;
+    const isPreMember = isPreMemberAccount(user);
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [messages, setMessages] = useState(() => getInitialMessages(location.state));
@@ -146,7 +148,12 @@ function Chat({ popup = false, onClose }) {
             />
 
             <div className="chat-main">
-                <ChatHeader openSidebar={() => setSidebarOpen(true)} onClose={popup ? onClose : undefined} />
+                <ChatHeader
+                    openSidebar={() => setSidebarOpen(true)}
+                    onClose={popup ? onClose : undefined}
+                    homePath={isPreMember ? "/welcome" : "/home"}
+                    audienceLabel={isPreMember ? "POLICY EXPLORER" : "MEMBER AI ASSISTANT"}
+                />
 
                 <MessageList
                     messages={messages}
@@ -164,6 +171,7 @@ function Chat({ popup = false, onClose }) {
                     sendText={sendText}
                     isLoading={isLoading}
                     inputRef={inputRef}
+                    isPreMember={isPreMember}
                 />
             </div>
         </div>
