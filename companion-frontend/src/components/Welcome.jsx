@@ -66,10 +66,10 @@ const CARDS = [
     },
     {
         id: "benefits",
-        title: "What benefits do I have?",
-        subtitle: "Wellness, cashback & more",
-        info: "Find out about wellness rewards, premium cashback, telemedicine, and any other benefits included in your current plan.",
-        firstMessage: "What benefits and rewards am I entitled to on my current plan?",
+        title: "Explore benefit options",
+        subtitle: "Family, funeral, disability & illness",
+        info: "Explore the life, family, funeral, disability, income protection, and illness benefits described in the MediCare guide.",
+        firstMessage: "Which family, funeral, disability, and illness benefits are described in the MediCare guide?",
         intent: "POLICY_QA",
         roles: ["ROLE_POLICYHOLDER", "ROLE_BENEFICIARY"],
         icon: (
