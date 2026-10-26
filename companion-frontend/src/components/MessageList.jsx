@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import Welcome from "./Welcome";
 import { COVER_OPTIONS, WAITING_OPTIONS } from "../hooks/useChat";
 
@@ -36,8 +37,24 @@ function sentenceParagraphs(text) {
 }
 
 function formatAssistantMessage(value) {
-    const text = String(value || "").trim();
+    let text = String(value || "").trim();
     if (!text) return "";
+
+    const isGuideExcerptFallback = text.includes("The AI summarizer is temporarily unavailable");
+    // Keep document markup and internal source labels out of the conversation.
+    // HTML breaks from the converted source guide are rendered as readable
+    // separators; GFM below renders the source's pipe tables as real tables.
+    text = text
+        .replace(/<br\s*\/?\s*>/gi, " — ")
+        .replace(/\bMomentum(?:\s+Metropolitan(?:\s+Life)?)?\b/gi, "MediCare");
+    if (isGuideExcerptFallback) {
+        text = text
+            .replace("The AI summarizer is temporarily unavailable, but I found these passages in the MediCare guide:", "I found relevant information in the MediCare guide:")
+            .replace(/\s*_{3,}\s*(?:[—–-]\s*)?Appendix\s+\d+[^*\n]*/gi, "")
+            .replace(/\s*[—–-]\s*Appendix\s+\d+[^*\n]*/gi, "")
+            .replace(/Please use this section in conjunction with Appendix\s+\d+\.?/gi, "");
+        return text;
+    }
 
     // Preserve AI output that already contains Markdown list/heading structure.
     if (/^\s*(#{1,6}\s|[-*]\s+|\d+[.)]\s+|>\s)/m.test(text)) return text;
@@ -163,7 +180,14 @@ function MessageList({ messages, isLoading, bottomRef, onQuickStart, onFocusInpu
                 <div className="bubble-body">
                     {isBot ? (
                         <div className="assistant-markdown">
-                            <ReactMarkdown>{formatAssistantMessage(msg.text || msg.message)}</ReactMarkdown>
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    table: ({ children }) => <div className="assistant-table-wrap"><table>{children}</table></div>,
+                                }}
+                            >
+                                {formatAssistantMessage(msg.text || msg.message)}
+                            </ReactMarkdown>
                         </div>
                     ) : (
                         msg.text || msg.message

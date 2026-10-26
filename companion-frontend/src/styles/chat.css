@@ -979,6 +979,50 @@ body.dark .input-inner {
     margin-top: 4px;
 }
 
+.assistant-table-wrap {
+    max-width: 100%;
+    margin: 10px 0 14px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface, #fff);
+    -webkit-overflow-scrolling: touch;
+}
+
+.assistant-markdown table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.assistant-markdown th,
+.assistant-markdown td {
+    min-width: 90px;
+    padding: 8px 10px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+    white-space: pre-line;
+}
+
+.assistant-markdown th {
+    color: var(--text);
+    font-weight: 700;
+    background: var(--surface-2, #f5f6f8);
+}
+
+.assistant-markdown tr:last-child td {
+    border-bottom: 0;
+}
+
+.assistant-markdown th:last-child,
+.assistant-markdown td:last-child {
+    border-right: 0;
+}
+
 .message-row.bot .bubble blockquote {
     border-left: 3px solid var(--red);
     margin: 8px 0;
