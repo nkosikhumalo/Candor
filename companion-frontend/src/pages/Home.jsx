@@ -328,10 +328,9 @@ export default function Home() {
                     </ul>
                     <div className="hp-cat-price">{p.premium}</div>
                     <div className="hp-cat-footer">
-                      <button className="hp-btn-primary" onClick={() => setView("membership")}>Become a member</button>
-                      <button className="hp-btn-outline" onClick={() =>
-                        navigate("/chat", { state: { starterQuestion: `Please explain the ${p.plan} benefit, who it may suit, and what details are needed to assess eligibility.`, backgroundLocation: location } })
-                      }>Ask about this</button>
+                      <button className="hp-btn-primary" onClick={() =>
+                        navigate("/chat", { state: { starterQuestion: `Explain the ${p.plan} benefit and the policy terms that apply to an existing member.`, backgroundLocation: location } })
+                      }>Ask Candor about this benefit</button>
                     </div>
                   </div>
                 </div>
@@ -368,8 +367,8 @@ export default function Home() {
           </div>
           <div className="hp-profile-stats">
             <div className="hp-stat">
-              <span className="hp-stat-num">Explore</span>
-              <span className="hp-stat-label">MediCare benefit options</span>
+              <span className="hp-stat-num">{user?.policyId || "Linked"}</span>
+              <span className="hp-stat-label">Policy number</span>
             </div>
           </div>
         </div>
@@ -379,13 +378,17 @@ export default function Home() {
         <div className="hp-wrap">
 
           <div className="hp-actions-row">
-            <button className="hp-action-btn hp-primary-action" onClick={() => setView("membership")}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
-              Become a member
+            <button className="hp-action-btn hp-primary-action" onClick={() => navigate("/quote")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+              Calculate a premium
             </button>
-            <button className="hp-action-btn hp-primary-action" onClick={() => navigate("/chat", { state: { starterQuestion: "Help me find out which MediCare life-policy benefits may suit my needs. Ask me the questions needed to guide me, and use the policy guide and calculation feature when relevant.", backgroundLocation: location } })}>
+            <button className="hp-action-btn hp-primary-action" onClick={() => setView("add-policy")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
+              View benefit guide
+            </button>
+            <button className="hp-action-btn" onClick={() => navigate("/chat", { state: { starterQuestion: "I am an existing MediCare policyholder or beneficiary. Help me understand my benefits, policy terms, or a claim.", backgroundLocation: location } })}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-              Ask which policies are suitable for you
+              Ask Candor
             </button>
             <button className="hp-action-btn" onClick={() => setView("notifications")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
@@ -397,7 +400,21 @@ export default function Home() {
           <section className="hp-section">
             <div className="hp-section-head">
               <div className="hp-section-bar" />
-              <h2>Explore MediCare benefits</h2>
+              <h2>My MediCare account</h2>
+            </div>
+            <div className="hp-membership-card">
+              <div className="hp-membership-account-grid">
+                <div><small>Policy number</small><strong>{user?.policyId || "Contact support to link your policy"}</strong></div>
+                <div><small>Account role</small><strong>{userRole === "BENEFICIARY" ? "Beneficiary" : "Policyholder"}</strong></div>
+              </div>
+              <p>Your account is linked to a MediCare policy. Use the benefit guide, premium calculator, claims, and Candor support for help with your cover.</p>
+            </div>
+          </section>
+
+          <section className="hp-section">
+            <div className="hp-section-head">
+              <div className="hp-section-bar" />
+              <h2>Understand your benefits</h2>
               <button className="hp-link-btn" onClick={() => setView("add-policy")}>View all benefits</button>
             </div>
             <div className="hp-catalogue-grid hp-dashboard-benefits">
@@ -464,7 +481,7 @@ export default function Home() {
               <h2>Documents</h2>
             </div>
             <div className="hp-docs-list">
-              {DOCS.length === 0 && <p className="hp-claims-empty">No policy documents are linked to this demo account yet. Use Become a member to view the application document checklist.</p>}
+              {DOCS.length === 0 && <p className="hp-claims-empty">No policy documents are linked to this demo account yet. Contact a MediCare adviser if you need a copy of your policy documents.</p>}
               {DOCS.map(d => (
                 <div key={d.name} className="hp-doc-row">
                   <div className="hp-doc-icon">
