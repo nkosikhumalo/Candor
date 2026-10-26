@@ -5,6 +5,21 @@ const User = require("../models/userModel");
 const { membershipStatusFor, normalizedPolicyId } = require("../services/membershipStatus");
 
 const { sessionCookieName, sessionCookieOptions, clearSessionCookie } = require("../middleware/sessionCookie");
+const COMMON_PASSWORD_PARTS = ["password", "qwerty", "letmein", "welcome", "admin", "medicare", "candor", "iloveyou", "123456"];
+
+function passwordPolicyIssues(password) {
+  if (typeof password !== "string") return ["enter a password"];
+  const normalized = password.toLowerCase().replace(/[\W_]+/g, "");
+  const issues = [];
+  if (password.length < 12) issues.push("at least 12 characters");
+  if (!/\p{Ll}/u.test(password)) issues.push("a lowercase letter");
+  if (!/\p{Lu}/u.test(password)) issues.push("an uppercase letter");
+  if (!/\p{N}/u.test(password)) issues.push("a number");
+  if (!/[^\p{L}\p{N}\s]/u.test(password)) issues.push("a symbol");
+  if (COMMON_PASSWORD_PARTS.some((part) => normalized.includes(part))) issues.push("no common password words such as password, welcome, or MediCare");
+  if (Buffer.byteLength(password, "utf8") > 72) issues.push("no more than 72 UTF-8 bytes");
+  return issues;
+}
 
 function publicUser(user) {
   const policyId = normalizedPolicyId(user.policyId || user.policy_id);
@@ -69,6 +84,13 @@ exports.register = async (req, res) => {
     const parsedPhone = typeof phone === "string" ? parsePhoneNumberFromString(phone) : null;
     if (!parsedPhone || !parsedPhone.isValid() || !parsedPhone.number.startsWith("+")) {
       return res.status(400).json({ message: "Enter a valid phone number with its country code." });
+    }
+
+    const passwordIssues = passwordPolicyIssues(password);
+    if (passwordIssues.length) {
+      return res.status(400).json({
+        message: `Choose a stronger password. It must have ${passwordIssues.join(", ")}.`,
+      });
     }
 
     const emailExists = await User.findUserByEmail(email);

@@ -148,6 +148,40 @@ h1 {
   line-height: 1.4;
 }
 
+.password-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.password-checks li {
+  display: flex;
+  gap: 5px;
+  align-items: flex-start;
+}
+
+.password-checks li > span {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.password-checks .password-check-passed,
+.password-checks .password-check-passed > span {
+  color: #278344;
+}
+
+@media (max-width: 420px) {
+  .password-checks {
+    grid-template-columns: 1fr;
+  }
+}
+
 .phone-field .phone-country-label {
   position: static;
   display: block;

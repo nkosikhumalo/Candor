@@ -13,6 +13,23 @@ const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
 const PHONE_COUNTRIES = getCountries()
   .map((country) => ({ country, name: COUNTRY_NAMES.of(country) || country, callingCode: getCountryCallingCode(country) }))
   .sort((a, b) => a.name.localeCompare(b.name));
+const COMMON_PASSWORD_PARTS = ["password", "qwerty", "letmein", "welcome", "admin", "medicare", "candor", "iloveyou", "123456"];
+const PASSWORD_CHECKS = [
+  { id: "length", label: "At least 12 characters", test: (value) => value.length >= 12 },
+  { id: "lower", label: "A lowercase letter", test: (value) => /\p{Ll}/u.test(value) },
+  { id: "upper", label: "An uppercase letter", test: (value) => /\p{Lu}/u.test(value) },
+  { id: "number", label: "A number", test: (value) => /\p{N}/u.test(value) },
+  { id: "symbol", label: "A symbol, such as ! or #", test: (value) => /[^\p{L}\p{N}\s]/u.test(value) },
+  { id: "common", label: "Avoid common words like password or MediCare", test: (value) => {
+    const normalized = value.toLowerCase().replace(/[\W_]+/g, "");
+    return !COMMON_PASSWORD_PARTS.some((part) => normalized.includes(part));
+  } },
+  { id: "bytes", label: "No more than 72 UTF-8 bytes", test: (value) => new TextEncoder().encode(value).length <= 72 },
+];
+
+function passwordMeetsPolicy(value) {
+  return PASSWORD_CHECKS.every((check) => check.test(value));
+}
 
 function countryFlag(country) {
   return [...country].map((letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397)).join("");
@@ -135,7 +152,7 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = "Valid email required";
     }
-    if (formData.password.length < 8) errs.password = "At least 8 characters";
+    if (!passwordMeetsPolicy(formData.password)) errs.password = "Choose a password that meets all the requirements below.";
     if (formData.password !== formData.confirm_password)
       errs.confirm_password = "Passwords do not match";
     return errs;
@@ -389,13 +406,21 @@ export default function Register() {
 
             {/* Password */}
             <div className="field">
-              <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder=" " />
+              <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder=" " autoComplete="new-password" aria-describedby="password-guidance" aria-invalid={Boolean(fieldErrors.password)} />
               <label>Password</label>
               {fieldErrors.password && <span className="field-error">{fieldErrors.password}</span>}
+              <ul className="password-checks" id="password-guidance" aria-label="Password requirements">
+                {PASSWORD_CHECKS.map((check) => {
+                  const passed = check.test(formData.password);
+                  return <li key={check.id} className={passed ? "password-check-passed" : ""}>
+                    <span aria-hidden="true">{passed ? "✓" : "○"}</span> {check.label}
+                  </li>;
+                })}
+              </ul>
             </div>
 
             <div className="field">
-              <input type="password" name="confirm_password" value={formData.confirm_password} onChange={handleChange} placeholder=" " />
+              <input type="password" name="confirm_password" value={formData.confirm_password} onChange={handleChange} placeholder=" " autoComplete="new-password" />
               <label>Confirm password</label>
               {fieldErrors.confirm_password && <span className="field-error">{fieldErrors.confirm_password}</span>}
             </div>
