@@ -1,6 +1,5 @@
 .env
 .env.*
 target/
-policy_rag.db
 *.log
 .git/
