@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-function ChatInput({ sendText, isLoading, inputRef }) {
+function ChatInput({ sendText, isLoading, inputRef, isPreMember = false }) {
     const [text, setText] = useState("");
     const [listening, setListening] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -94,7 +94,7 @@ function ChatInput({ sendText, isLoading, inputRef }) {
                         value={text}
                         onChange={e => setText(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder={isLoading ? "Candor is thinking…" : "Ask Candor anything about your policy…"}
+                        placeholder={isLoading ? "Candor is thinking…" : isPreMember ? "Ask about MediCare benefits and cover options…" : "Ask Candor anything about your policy…"}
                         disabled={isLoading}
                     />
                 </div>
