@@ -334,6 +334,13 @@ public class ChunkRepository {
                 Map.entry("policies", List.of("policy", "benefit", "cover")),
                 Map.entry("product", List.of("benefit", "cover")),
                 Map.entry("products", List.of("product", "benefit", "cover")),
+                Map.entry("illness", List.of("critical illness", "critical", "living benefit")),
+                Map.entry("disease", List.of("illness", "critical illness", "condition")),
+                Map.entry("income", List.of("income protection", "income protector", "monthly income")),
+                Map.entry("salary", List.of("income", "income protector", "monthly income")),
+                Map.entry("protection", List.of("protector", "cover", "benefit")),
+                Map.entry("family", List.of("funeral", "death benefit", "beneficiary")),
+                Map.entry("funeral", List.of("funeral benefit", "death benefit")),
                 Map.entry("qualify", List.of("eligible", "acceptance", "underwriting", "age limits")),
                 Map.entry("qualifies", List.of("eligible", "acceptance", "underwriting", "age limits")),
                 Map.entry("eligible", List.of("eligibility", "acceptance", "underwriting", "age limits")),
@@ -352,8 +359,14 @@ public class ChunkRepository {
                 Map.entry("stop", List.of("cancel", "lapse", "suspend"))
         );
 
+        String normalizedQuery = query.toLowerCase()
+                .replaceAll("\\billnes\\b", "illness")
+                .replaceAll("\\bbenifit\\b", "benefit")
+                .replaceAll("\\bbenfits\\b", "benefits")
+                .replaceAll("\\bpolciy\\b", "policy")
+                .replaceAll("\\bpolciies\\b", "policies");
         LinkedHashSet<String> terms = new LinkedHashSet<>();
-        String[] words = query.toLowerCase().replaceAll("[^a-z0-9 ]", " ").trim().split("\\s+");
+        String[] words = normalizedQuery.replaceAll("[^a-z0-9 ]", " ").trim().split("\\s+");
         for (String word : words) {
             if (word.isBlank() || word.length() < 2 || stop.contains(word)) continue;
             terms.add(word);

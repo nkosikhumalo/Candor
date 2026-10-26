@@ -33,7 +33,7 @@ public class RagRetrievalService {
         this.embeddingClient = embeddingClient;
         this.props = props;
         if (props.isUseMock()) {
-            log.warn("[RagRetrieval] Keyword mode is active; stored embedding vectors will not be searched.");
+            log.info("[RagRetrieval] Keyword mode active; searching SQLite policy text. Embedding vectors are inactive because RAG_USE_MOCK=true.");
         } else {
             log.info("[RagRetrieval] Vector mode is active; using {} for query embeddings.", props.getEmbeddingModel());
         }

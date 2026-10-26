@@ -212,7 +212,17 @@ public class GroundedChatService {
                     AuditAction.AI_NO_PROVIDER,
                     Map.of("reason", "no_provider_configured"),
                     false, AuditStatus.HOLD_FOR_MANUAL_REVIEW);
-            return props.getFallbackResponse();
+            String excerptAnswer = groundedExcerptResponse(contextBlock);
+            memoryStore.append(conversationId, "user", userQuestion);
+            memoryStore.append(conversationId, "assistant", excerptAnswer);
+            return excerptAnswer;
+        }
+
+        // Keep useful retrieved policy text visible if a provider rejects the
+        // request (for example, OpenRouter's low-credit HTTP 402). Never discard
+        // grounded context and replace it with the same generic response.
+        if (props.getFallbackResponse().equals(rawResponse)) {
+            rawResponse = groundedExcerptResponse(contextBlock);
         }
 
         // Step 5: Compliance guardrail check
@@ -273,6 +283,31 @@ public class GroundedChatService {
             compacted.add(Map.of("role", turn.get("role"), "content", content));
         }
         return compacted;
+    }
+
+    private String groundedExcerptResponse(String contextBlock) {
+        List<String> sections = new ArrayList<>();
+        for (String section : contextBlock.split("\\n\\n(?=\\[Section:)")) {
+            if (section.startsWith("[Section:")) sections.add(section.strip());
+            if (sections.size() == 3) break;
+        }
+        if (sections.isEmpty()) return props.getFallbackResponse();
+
+        StringBuilder response = new StringBuilder(
+                "The AI summarizer is temporarily unavailable, but I found these passages in the MediCare guide:\n\n");
+        for (String section : sections) {
+            String[] lines = section.split("\\R", 2);
+            String heading = lines[0].replace("[Section:", "").replace("]", "").strip();
+            String excerpt = lines.length > 1 ? lines[1].strip() : "";
+            if (excerpt.length() > 720) {
+                int end = excerpt.lastIndexOf(' ', 720);
+                excerpt = excerpt.substring(0, end > 400 ? end : 720).stripTrailing() + "…";
+            }
+            response.append("**").append(heading).append("**\n")
+                    .append(excerpt).append("\n\n");
+        }
+        response.append("These are guide excerpts, not a decision about which benefits apply to your individual policy. Your policy schedule and underwriting determine that.");
+        return response.toString();
     }
 
     /** Answers broad product and eligibility questions using the documented guide scope. */
